@@ -36,6 +36,13 @@ def java_compile(src_path: Path, jar_path: Path):
         outdir = Path(out).resolve()
         compiler = ToolProvider.getSystemJavaCompiler()
         fman = compiler.getStandardFileManager(None, None, None)
+
+        # allow for target versions > 11
+        latest_version = compiler.getSourceVersions().toArray()[0].latest()
+        latest_num = int(str(latest_version).split("_")[1])
+        if latest_num > 11:
+            COMPILER_OPTIONS[1] = str(latest_num)
+        
         cp = [JPath @ (Path(p)) for p in System.getProperty("java.class.path").split(';')]
         fman.setLocationFromPaths(StandardLocation.CLASS_PATH, cp)
         if src_path.is_dir():
