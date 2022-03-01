@@ -131,9 +131,20 @@ class PyhidraLauncher:
             if self.java_home is None:
                 java_home = subprocess.check_output(_GET_JAVA_HOME, encoding="utf-8")
                 self.java_home = Path(java_home.rstrip())
+            
+            system = platform.system().upper()
+            if system == "LINUX":
+                jvm_path = str(self.java_home / "lib" / "server" / "libjvm.so")
+            elif system == "DARWIN":
+                jvm_path = str(self.java_home / "lib" / "server" / "libjvm.dylib")
+            elif system == "WINDOWS":
+                jvm_path = str(self.java_home / "bin" / "server" / "jvm.dll")
+            else:
+                #Potentially unsupported platform. Continuing with default JVM
+                jvm_path = jpype.getDefaultJVMPath()
 
             jpype.startJVM(
-                str(self.java_home / "bin" / "server" / "jvm.dll"),
+                jvm_path,
                 *self.vm_args,
                 ignoreUnrecognized=True,
                 convertStrings=True,
