@@ -129,7 +129,7 @@ class PyhidraLauncher:
             self.check_ghidra_version()
 
             if self.java_home is None:
-                java_home = subprocess.check_output(_GET_JAVA_HOME, encoding="utf-8")
+                java_home = subprocess.check_output(_GET_JAVA_HOME, encoding="utf-8",shell=True)
                 self.java_home = Path(java_home.rstrip())
 
             jpype.startJVM(
