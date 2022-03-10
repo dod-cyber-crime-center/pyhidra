@@ -239,17 +239,25 @@ class GuiPyhidraLauncher(PyhidraLauncher):
         return None
 
     def _launch(self):
-        import ctypes
-        from ghidra import GhidraRun
-
-        if sys.platform == "win32":
-            appid = ctypes.c_wchar_p(CURRENT_APPLICATION.name)
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appid)
-        GhidraRun().launch(self.layout, self.args)
-        t = GuiPyhidraLauncher._get_thread("main")
-        if t is not None:
-            try:
-                t.join()
-            except RuntimeError as e:
-                if "java.lang.InterruptedException" not in e.args:
-                    raise
+        def gui():
+            import ctypes
+            from ghidra import GhidraRun
+            if sys.platform == "win32":
+                appid = ctypes.c_wchar_p(CURRENT_APPLICATION.name)
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appid)
+            GhidraRun().launch(self.layout, self.args)
+            t = GuiPyhidraLauncher._get_thread("main")
+            if t is not None:
+                try:
+                    t.join()
+                except RuntimeError as e:
+                    if "java.lang.InterruptedException" not in e.args:
+                        raise
+            jpype.shutdownGuiEnvironment()
+            jpype.shutdownJVM()
+        
+        '''
+        On Mac, it is necessary to initialize the GUI environment. On other 
+        platforms this just calls the function directly.
+        '''
+        jpype.setupGuiEnvironment(gui)
