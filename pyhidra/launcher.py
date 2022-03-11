@@ -248,11 +248,14 @@ class GuiPyhidraLauncher(PyhidraLauncher):
         if sys.platform == "win32":
             appid = ctypes.c_wchar_p(CURRENT_APPLICATION.name)
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appid)
-        GhidraRun().launch(self.layout, self.args)
-        t = GuiPyhidraLauncher._get_thread("main")
-        if t is not None:
-            try:
-                t.join()
-            except RuntimeError as e:
-                if "java.lang.InterruptedException" not in e.args:
-                    raise
+        jpype.setupGuiEnvironment(lambda: GhidraRun().launch(self.layout, self.args))
+        try:
+            t = GuiPyhidraLauncher._get_thread("main")
+            if t is not None:
+                try:
+                    t.join()
+                except RuntimeError as e:
+                    if "java.lang.InterruptedException" not in e.args:
+                        raise
+        finally:
+            jpype.shutdownGuiEnvironment()
