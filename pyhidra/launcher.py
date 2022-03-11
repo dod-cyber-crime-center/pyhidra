@@ -132,8 +132,11 @@ class PyhidraLauncher:
                 java_home = subprocess.check_output(_GET_JAVA_HOME, encoding="utf-8",shell=True)
                 self.java_home = Path(java_home.rstrip())
 
+            jvm = Path(jpype.getDefaultJVMPath())
+            jvm = self.java_home / jvm.parents[1].name / "server" / jvm.name
+
             jpype.startJVM(
-                str(self.java_home / "bin" / "server" / "jvm.dll"),
+                str(jvm),
                 *self.vm_args,
                 ignoreUnrecognized=True,
                 convertStrings=True,
