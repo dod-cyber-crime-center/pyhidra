@@ -1,5 +1,7 @@
 # Changelog
 
+## Unreleased
+- Addressed cross-platform support problems
 
 ## 0.1.1 - 2022-01-27
 - Fixed issue from mishandled newline in the interpreter panel
@@ -10,4 +12,4 @@
 ## 0.1.0 - 2021-06-14
 - Initial release
 
-[Unreleased]: https://github.com/Defense-Cyber-Crime-Center/pyhidra/compare/0.1.0...HEAD
+[Unreleased]: https://github.com/Defense-Cyber-Crime-Center/pyhidra/compare/0.1.1...HEAD
