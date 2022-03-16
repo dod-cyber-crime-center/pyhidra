@@ -1,6 +1,7 @@
 import shutil
 import tempfile
 from pathlib import Path
+from os import pathsep
 
 
 COMPILER_OPTIONS = ["-target", "11"]
@@ -36,7 +37,7 @@ def java_compile(src_path: Path, jar_path: Path):
         outdir = Path(out).resolve()
         compiler = ToolProvider.getSystemJavaCompiler()
         fman = compiler.getStandardFileManager(None, None, None)
-        cp = [JPath @ (Path(p)) for p in System.getProperty("java.class.path").split(';')]
+        cp = [JPath @ (Path(p)) for p in System.getProperty("java.class.path").split(pathsep)]
         fman.setLocationFromPaths(StandardLocation.CLASS_PATH, cp)
         if src_path.is_dir():
             fman.setLocationFromPaths(StandardLocation.SOURCE_PATH, [JPath @ (src_path.resolve())])
