@@ -1,5 +1,5 @@
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 # Expose API
 from .ghidra import run_script, start, open_program

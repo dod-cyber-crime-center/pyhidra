@@ -1,7 +1,13 @@
 # Changelog
 
 ## Unreleased
-- Addressed cross-platform support problems
+
+## 0.1.2 - 2022-03-18
+- Fixed issue Java Path delimiter
+- Fixed issue that caused subprocess to not run correctly on non-windows systems
+- Set source target Java version to 11
+- Corrected JVM path on non-windows systems
+- Added Mac GUI fixes 
 
 ## 0.1.1 - 2022-01-27
 - Fixed issue from mishandled newline in the interpreter panel
@@ -12,4 +18,4 @@
 ## 0.1.0 - 2021-06-14
 - Initial release
 
-[Unreleased]: https://github.com/Defense-Cyber-Crime-Center/pyhidra/compare/0.1.1...HEAD
+[Unreleased]: https://github.com/Defense-Cyber-Crime-Center/pyhidra/compare/0.1.2...HEAD
