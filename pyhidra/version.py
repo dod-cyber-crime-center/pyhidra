@@ -7,7 +7,7 @@ from typing import NamedTuple, Union
 from pyhidra import __version__
 from pyhidra.constants import GHIDRA_INSTALL_DIR
 
-_APPLICATION_PATTERN = re.compile(r"^application\.(\S+?)=(.+)$")
+_APPLICATION_PATTERN = re.compile(r"^application\.(\S+?)=(.*)$")
 _APPLICATION_PATH = GHIDRA_INSTALL_DIR / "Ghidra" / "application.properties"
 
 
