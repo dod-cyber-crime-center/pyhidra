@@ -2,4 +2,3 @@ graft pyhidra
 global-exclude *.py[cod]
 include README.md
 include LICENSE
-include NOTICE

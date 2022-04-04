@@ -10,14 +10,14 @@ import nox
 from pathlib import Path
 
 
-@nox.session(python="3.7")
+@nox.session
 def test(session):
     """Run pytests"""
     session.install("-e", ".[testing]")
     session.run("pytest")
 
 
-@nox.session(python="3.7")
+@nox.session
 def build(session):
     """Build source and wheel distribution"""
     session.run("python", "setup.py", "sdist")
@@ -30,7 +30,7 @@ def release_patch(session):
     Path("dist").mkdir(exist_ok=True)
     with open("./dist/updates.patch", "w") as out:
         session.run(
-            "git", "format-patch", "--stdout", "master",
+            "git", "format-patch", "--stdout", "origin/main",
             external=True,
             stdout=out
         )
