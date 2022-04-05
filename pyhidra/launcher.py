@@ -61,9 +61,7 @@ def _silence_java_output(stdout=True, stderr=True):
             System.setErr(err)
 
 def _get_libjvm_path(java_home: Path) -> Path:
-    jvm = Path(jpype.getDefaultJVMPath())
-    jvm = java_home / jvm.parents[1].name / "server"
-    for p in jvm.glob("*jvm.*"):
+    for p in java_home.glob("*/server/*jvm.*"):
         return p
 
 
@@ -135,7 +133,7 @@ class PyhidraLauncher:
             self.check_ghidra_version()
 
             if self.java_home is None:
-                java_home = subprocess.check_output(_GET_JAVA_HOME, encoding="utf-8",shell=True)
+                java_home = subprocess.check_output(_GET_JAVA_HOME, encoding="utf-8", shell=True)
                 self.java_home = Path(java_home.rstrip())
 
             jvm = _get_libjvm_path(self.java_home)

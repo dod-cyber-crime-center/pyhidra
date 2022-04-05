@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- corrected server jvm lib locating for openjdk on macs
 
 ## 0.1.3 - 2022-03-30
 - Corrected server libjvm locating
