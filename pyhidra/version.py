@@ -32,7 +32,7 @@ class ApplicationInfo:
         for line in _APPLICATION_PATH.read_text(encoding="utf8").splitlines():
             match = _APPLICATION_PATTERN.match(line)
             if not match:
-                break
+                continue
             attr = match.group(1).replace('.', '_').replace('-', '_')
             value = match.group(2)
             super().__setattr__(attr, value)
