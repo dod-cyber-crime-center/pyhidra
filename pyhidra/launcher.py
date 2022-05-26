@@ -62,7 +62,8 @@ def _silence_java_output(stdout=True, stderr=True):
 
 def _get_libjvm_path(java_home: Path) -> Path:
     for p in java_home.glob("*/server/*jvm.*"):
-        return p
+        if p.suffix != ".debuginfo":
+            return p
 
 
 class PyhidraLauncher:
