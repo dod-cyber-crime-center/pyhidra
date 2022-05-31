@@ -3,6 +3,7 @@ __pycache__
 build/
 dist/
 *.egg-info
+.pylintrc
 
 # ghidra files from tests
 *.rep

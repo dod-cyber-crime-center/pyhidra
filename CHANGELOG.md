@@ -1,7 +1,10 @@
 # Changelog
 
-## Unreleased
-- corrected server jvm lib locating for openjdk on macs
+## [Unreleased]
+- Corrected server JVM library locating for openjdk on MAC
+- Ignore unmatched lines in application.properties
+- Prevent parsing of application.properties on import.
+- Added `get_current_interpreter()` function to detect and retrieve the interpreter within the Ghidra GUI.
 
 ## 0.1.3 - 2022-03-30
 - Corrected server libjvm locating

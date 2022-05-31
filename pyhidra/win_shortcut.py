@@ -3,7 +3,7 @@ import sys
 import sysconfig
 from pathlib import Path
 from pyhidra.constants import GHIDRA_INSTALL_DIR
-from pyhidra.version import CURRENT_APPLICATION
+from pyhidra.version import get_current_application
 
 
 # creating a shortcut with the winapi to have a set app id is trivial right?
@@ -39,7 +39,7 @@ def create_shortcut(link: Path):
     _COINIT_APARTMENTTHREADED = 2
     _COINIT_DISABLE_OLE1DDE = 4
     _VT_LPWSTR = 31
-    _APP_ID = CURRENT_APPLICATION.name
+    _APP_ID = get_current_application().name
 
     WINFUNCTYPE = ctypes.WINFUNCTYPE
     _CoCreateInstance = ctypes.oledll.ole32.CoCreateInstance

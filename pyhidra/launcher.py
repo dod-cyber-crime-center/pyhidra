@@ -14,7 +14,7 @@ from jpype import imports
 
 from . import __version__
 from .constants import LAUNCH_PROPERTIES, LAUNCHSUPPORT, GHIDRA_INSTALL_DIR, UTILITY_JAR
-from .version import CURRENT_APPLICATION, CURRENT_GHIDRA_VERSION, MINIMUM_GHIDRA_VERSION, \
+from .version import get_current_application, get_ghidra_version, MINIMUM_GHIDRA_VERSION, \
     ExtensionDetails
 
 
@@ -97,7 +97,7 @@ class PyhidraLauncher:
 
     @classmethod
     def _update(cls):
-        ext = CURRENT_APPLICATION.extension_path / "pyhidra" / "extension.properties"
+        ext = get_current_application().extension_path / "pyhidra" / "extension.properties"
         if ext.exists():
             details = ExtensionDetails(ext)
             if details.pyhidra < __version__:
@@ -116,11 +116,11 @@ class PyhidraLauncher:
         Checks if the currently installed Ghidra version is supported.
         The launcher will report the problem and terminate if it is not supported.
         """
-        if CURRENT_GHIDRA_VERSION < MINIMUM_GHIDRA_VERSION:
+        if get_ghidra_version() < MINIMUM_GHIDRA_VERSION:
             cls._report_fatal_error(
                 "Unsupported Version",
                 textwrap.dedent(f"""\
-                    Ghidra version {CURRENT_GHIDRA_VERSION} is not supported
+                    Ghidra version {get_ghidra_version()} is not supported
                     The minimum required version is {MINIMUM_GHIDRA_VERSION}
                 """).rstrip()
             )
@@ -250,7 +250,7 @@ class GuiPyhidraLauncher(PyhidraLauncher):
         from ghidra import GhidraRun
 
         if sys.platform == "win32":
-            appid = ctypes.c_wchar_p(CURRENT_APPLICATION.name)
+            appid = ctypes.c_wchar_p(get_current_application().name)
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appid)
         jpype.setupGuiEnvironment(lambda: GhidraRun().launch(self.layout, self.args))
         try:

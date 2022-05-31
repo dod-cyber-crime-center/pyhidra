@@ -52,10 +52,39 @@ class ApplicationInfo:
         return root / f"{root.name}_{self.version}_{self.release_name}" / "Extensions"
 
 
-CURRENT_APPLICATION = ApplicationInfo()
-CURRENT_GHIDRA_VERSION = CURRENT_APPLICATION.version
+_CURRENT_APPLICATION: ApplicationInfo = None
+_CURRENT_GHIDRA_VERSION: str = None
 MINIMUM_GHIDRA_VERSION = "10.1.1"
 
+
+def get_current_application() -> ApplicationInfo:
+    global _CURRENT_APPLICATION
+    if _CURRENT_APPLICATION is None:
+        _CURRENT_APPLICATION = ApplicationInfo()
+    return _CURRENT_APPLICATION
+
+
+def get_ghidra_version() -> str:
+    global _CURRENT_GHIDRA_VERSION
+    if _CURRENT_GHIDRA_VERSION is None:
+        _CURRENT_GHIDRA_VERSION = get_current_application().version
+    return _CURRENT_GHIDRA_VERSION
+
+
+_EXTENSION_DEFAULTS: dict = None
+
+def _get_extension_defaults() -> dict:
+    global _EXTENSION_DEFAULTS
+    if _EXTENSION_DEFAULTS is None:
+        _EXTENSION_DEFAULTS = {
+            "name":  "pyhidra",
+            "description":  "Native Python Plugin",
+            "author":  "Department of Defense Cyber Crime Center (DC3)",
+            "createdOn":  "",
+            "version": get_ghidra_version(),
+            "pyhidra": __version__
+        }
+    return _EXTENSION_DEFAULTS
 
 def _properties_wrapper(cls):
     @functools.wraps(cls)
@@ -67,7 +96,7 @@ def _properties_wrapper(cls):
             return cls.__annotations__[key](value)
 
         if ext is None:
-            return cls()
+            return cls(_get_extension_defaults())
         lines = ext.read_text().splitlines()
         args = tuple(starmap(cast, map(lambda l: l.split('='), lines)))
         return cls(*args)
@@ -84,7 +113,7 @@ class ExtensionDetails(NamedTuple):
     description: str = "Native Python Plugin"
     author: str = "Department of Defense Cyber Crime Center (DC3)"
     createdOn: str = ""
-    version: str = CURRENT_GHIDRA_VERSION
+    version: str = None
     pyhidra: str = __version__
 
     def __repr__(self):

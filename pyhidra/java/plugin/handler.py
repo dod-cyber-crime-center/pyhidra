@@ -5,7 +5,7 @@ from utility.application import ApplicationLayout
 
 from pyhidra.java.plugin.plugin import PyPhidraPlugin
 from pyhidra.javac import java_compile
-from pyhidra.version import CURRENT_APPLICATION, ExtensionDetails
+from pyhidra.version import get_current_application, ExtensionDetails
 
 
 
@@ -27,7 +27,7 @@ def install():
     """
     Install the plugin in Ghidra
     """
-    path = CURRENT_APPLICATION.extension_path / "pyhidra"
+    path = get_current_application().extension_path / "pyhidra"
     ext = path / "extension.properties"
     manifest = path / "Module.manifest"
     if not manifest.exists():
