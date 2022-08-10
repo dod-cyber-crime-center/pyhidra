@@ -1,9 +1,12 @@
 
 import pathlib
 import textwrap
+import importlib
+import jpype
 import pyhidra
 from pyhidra.__main__ import _get_parser, PyhidraArgs
 from pyhidra.script import PyGhidraScript
+from pyhidra.constants import GHIDRA_BASE_JAVA_PACKAGES
 
 #pylint: disable=protected-access, missing-function-docstring
 
@@ -79,3 +82,26 @@ def test_arg_parser(strings_exe):
         assert False
     except ValueError:
         pass
+
+def test_import_ghidra_base_java_packages():
+
+    launcher = pyhidra.start()
+
+    for mod in GHIDRA_BASE_JAVA_PACKAGES:
+        # check spec using standard import machinery "import mod"
+        spec = importlib.util.find_spec(mod)
+        print(mod)
+        if not isinstance(spec.loader, jpype.imports._JImportLoader):
+            # handle case with conflict. check spec with "import mod_"
+            spec = importlib.util.find_spec(launcher._wrap_mod(mod))
+
+        assert spec
+        assert isinstance(spec.loader, jpype.imports._JImportLoader)
+
+        # Test standard import
+        import ghidra
+        assert isinstance(ghidra.__loader__, jpype.imports._JImportLoader)
+
+        # Test import with conflict
+        import pdb_ as pdb
+        assert isinstance(pdb.__loader__, jpype.imports._JImportLoader)

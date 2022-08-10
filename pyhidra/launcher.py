@@ -13,7 +13,7 @@ import jpype
 from jpype import imports
 
 from . import __version__
-from .constants import LAUNCH_PROPERTIES, LAUNCHSUPPORT, GHIDRA_INSTALL_DIR, UTILITY_JAR
+from .constants import LAUNCH_PROPERTIES, LAUNCHSUPPORT, GHIDRA_INSTALL_DIR, UTILITY_JAR, GHIDRA_BASE_JAVA_PACKAGES
 from .version import get_current_application, get_ghidra_version, MINIMUM_GHIDRA_VERSION, \
     ExtensionDetails
 
@@ -125,6 +125,18 @@ class PyhidraLauncher:
                 """).rstrip()
             )
 
+    @classmethod
+    def _wrap_mod(cls,mod):
+        return mod + "_"
+
+    @classmethod
+    def _wrap_ghidra_base_java_packages(cls):        
+        """
+        Wraps Ghidra's base Java packages to avoid name conflicts with Python modules
+        """
+        for mod in GHIDRA_BASE_JAVA_PACKAGES:
+            imports.registerDomain(cls._wrap_mod(mod), mod)
+
     def start(self):
         """
         Starts Jpype connection to Ghidra (if not already started).
@@ -147,6 +159,8 @@ class PyhidraLauncher:
                 classpath=self.class_path
             )
             imports.registerDomain("ghidra")
+
+            self._wrap_ghidra_base_java_packages()
 
             from ghidra import GhidraLauncher
 
