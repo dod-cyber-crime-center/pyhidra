@@ -3,10 +3,10 @@ import pathlib
 import textwrap
 import importlib
 import jpype
+import sys
 import pyhidra
 from pyhidra.__main__ import _get_parser, PyhidraArgs
 from pyhidra.script import PyGhidraScript
-from pyhidra.constants import GHIDRA_BASE_JAVA_PACKAGES
 
 #pylint: disable=protected-access, missing-function-docstring
 
@@ -86,22 +86,29 @@ def test_arg_parser(strings_exe):
 def test_import_ghidra_base_java_packages():
 
     launcher = pyhidra.start()
+    packages = launcher.get_runtime_top_level_java_packages()
 
-    for mod in GHIDRA_BASE_JAVA_PACKAGES:
+    assert len(packages) > 0
+
+    for mod in packages:
         # check spec using standard import machinery "import mod"
         spec = importlib.util.find_spec(mod)
-        print(mod)
+        
         if not isinstance(spec.loader, jpype.imports._JImportLoader):
             # handle case with conflict. check spec with "import mod_"
             spec = importlib.util.find_spec(launcher._wrap_mod(mod))
 
-        assert spec
+        assert spec is not None
         assert isinstance(spec.loader, jpype.imports._JImportLoader)
 
-        # Test standard import
-        import ghidra
-        assert isinstance(ghidra.__loader__, jpype.imports._JImportLoader)
+    # Test standard import
+    import ghidra
+    assert isinstance(ghidra.__loader__, jpype.imports._JImportLoader)
 
-        # Test import with conflict
-        import pdb_ as pdb
-        assert isinstance(pdb.__loader__, jpype.imports._JImportLoader)
+    # Test import with conflict
+    import pdb_
+    assert isinstance(pdb_.__loader__, jpype.imports._JImportLoader)
+
+    # Test "from" import with conflict
+    from pdb_ import PdbPlugin    
+    from pdb_.symbolserver import LocalSymbolStore
