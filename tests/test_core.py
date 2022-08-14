@@ -83,32 +83,72 @@ def test_arg_parser(strings_exe):
     except ValueError:
         pass
 
+
 def test_import_ghidra_base_java_packages():
 
+    def get_runtime_top_level_java_packages(launcher) -> set:
+        from java.lang import Package
+
+        packages = set()
+
+        # Applicaiton needs to fully intialize to find all Ghidra packages
+        if launcher.has_launched():
+
+            for package in Package.getPackages():
+                # capture base packages only
+                packages.add(package.getName().split('.')[0])
+
+        # Remove dc3 base package as it doesn't exist and won't conflict
+        packages.remove('dc3')
+
+        return packages
+
+    def wrap_mod(mod):
+        return mod + '_'
+
     launcher = pyhidra.start()
-    packages = launcher.get_runtime_top_level_java_packages()
+
+    # Test to ensure _PyhidraImportLoader is last loader
+    assert isinstance(sys.meta_path[-1],pyhidra.launcher._PyhidraImportLoader)
+
+    packages = get_runtime_top_level_java_packages(launcher)
 
     assert len(packages) > 0
 
+    # Test full coverage for Java base packages (_JImportLoader or _PyhidraImportLoader)
     for mod in packages:
         # check spec using standard import machinery "import mod"
         spec = importlib.util.find_spec(mod)
-        
         if not isinstance(spec.loader, jpype.imports._JImportLoader):
             # handle case with conflict. check spec with "import mod_"
-            spec = importlib.util.find_spec(launcher._wrap_mod(mod))
+            spec = importlib.util.find_spec(wrap_mod(mod))
 
         assert spec is not None
-        assert isinstance(spec.loader, jpype.imports._JImportLoader)
+        assert isinstance(spec.loader, jpype.imports._JImportLoader) or isinstance(
+            spec.loader, pyhidra.launcher._PyhidraImportLoader)
+
+    # Test all Java base packages are available with '_'
+    for mod in packages:
+        spec_ = importlib.util.find_spec(wrap_mod(mod))
+        assert spec_ is not None
+        assert isinstance(spec_.loader, pyhidra.launcher._PyhidraImportLoader)
 
     # Test standard import
     import ghidra
     assert isinstance(ghidra.__loader__, jpype.imports._JImportLoader)
 
-    # Test import with conflict
+    # Test import with conflict    
     import pdb_
-    assert isinstance(pdb_.__loader__, jpype.imports._JImportLoader)
+    assert isinstance(pdb_.__loader__, pyhidra.launcher._PyhidraImportLoader)
 
     # Test "from" import with conflict
-    from pdb_ import PdbPlugin    
+    from pdb_ import PdbPlugin
     from pdb_.symbolserver import LocalSymbolStore
+
+    # Test _Jpackage handles import that doesn't exist
+    try:
+        import pdb_.doesntexist
+    except ImportError as e:
+        pass
+
+

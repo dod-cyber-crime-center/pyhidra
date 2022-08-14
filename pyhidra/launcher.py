@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import NoReturn
 
 import jpype
-from jpype import imports
+from jpype import imports, _jpype
+from importlib.machinery import ModuleSpec as _ModuleSpec
 
 from . import __version__
 from .constants import LAUNCH_PROPERTIES, LAUNCHSUPPORT, GHIDRA_INSTALL_DIR, UTILITY_JAR
@@ -65,6 +66,25 @@ def _get_libjvm_path(java_home: Path) -> Path:
         if p.suffix != ".debuginfo":
             return p
 
+class _PyhidraImportLoader:
+    """ (internal) Finder hook for importlib to handle Python mod conflicts. """
+
+    def find_spec(self, name, path, target=None):
+
+        # If jvm is not started then there is nothing to find.
+        if not _jpype.isStarted():
+            return None
+
+        if name.endswith('_') and _jpype.isPackage(name[:-1]):
+            ms = _ModuleSpec(name, self)
+            ms._jname = name[:-1]
+            return ms
+
+    def create_module(self, spec):
+        return _jpype._JPackage(spec._jname)
+
+    def exec_module(self, fullname):
+        pass
 
 class PyhidraLauncher:
     """
@@ -125,40 +145,6 @@ class PyhidraLauncher:
                 """).rstrip()
             )
 
-    @classmethod
-    def get_runtime_top_level_java_packages(cls) -> set:
-        """
-        Discover runtime java packages
-        Returns empty set if Ghidra hasn't launched
-        """
-        from java.lang import Package
-
-        packages = set()
-
-        # Applicaiton needs to fully intialize to find all Ghidra packages
-        if cls.has_launched():
-
-            for package in Package.getPackages():
-                # capture base packages only
-                packages.add(package.getName().split('.')[0])
-
-        # Remove dc3 base package as it doesn't exist and won't conflict
-        packages.remove('dc3')
-
-        return packages
-
-    @classmethod
-    def _wrap_mod(cls,mod):
-        return mod + "_"
-
-    @classmethod
-    def _wrap_runtime_top_level_java_packages(cls):
-        """
-        Wraps Ghidra's base Java packages to avoid name conflicts with Python modules
-        """
-        for package in cls.get_runtime_top_level_java_packages():
-            imports.registerDomain(cls._wrap_mod(package), package)
-
     def start(self):
         """
         Starts Jpype connection to Ghidra (if not already started).
@@ -180,6 +166,10 @@ class PyhidraLauncher:
                 convertStrings=True,
                 classpath=self.class_path
             )
+
+            # Install hook into python importlib
+            sys.meta_path.append(_PyhidraImportLoader())
+
             imports.registerDomain("ghidra")
 
             from ghidra import GhidraLauncher
@@ -234,7 +224,6 @@ class DeferredPyhidraLauncher(PyhidraLauncher):
             if headless:
                 config = HeadlessGhidraApplicationConfiguration()
                 Application.initializeApplication(self.layout, config)
-                self._wrap_runtime_top_level_java_packages()
             else:
                 GhidraRun().launch(self.layout, self.args)
 
@@ -251,8 +240,7 @@ class HeadlessPyhidraLauncher(PyhidraLauncher):
         from ghidra.framework import Application, HeadlessGhidraApplicationConfiguration
         with _silence_java_output(not self.verbose, not self.verbose):
             config = HeadlessGhidraApplicationConfiguration()
-            Application.initializeApplication(self.layout, config)            
-            self._wrap_runtime_top_level_java_packages()
+            Application.initializeApplication(self.layout, config)
 
 
 def _popup_error(header: str, msg: str) -> NoReturn:
