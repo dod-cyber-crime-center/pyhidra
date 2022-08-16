@@ -11,7 +11,7 @@ from typing import NoReturn
 
 import jpype
 from jpype import imports, _jpype
-from importlib.machinery import ModuleSpec as _ModuleSpec
+from importlib.machinery import ModuleSpec
 
 from . import __version__
 from .constants import LAUNCH_PROPERTIES, LAUNCHSUPPORT, GHIDRA_INSTALL_DIR, UTILITY_JAR
@@ -76,12 +76,10 @@ class _PyhidraImportLoader:
             return None
 
         if name.endswith('_') and _jpype.isPackage(name[:-1]):
-            ms = _ModuleSpec(name, self)
-            ms._jname = name[:-1]
-            return ms
+            return ModuleSpec(name, self)
 
     def create_module(self, spec):
-        return _jpype._JPackage(spec._jname)
+        return _jpype._JPackage(spec.name[:-1])
 
     def exec_module(self, fullname):
         pass
