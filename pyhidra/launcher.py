@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import NoReturn
 
 import jpype
-from jpype import imports
+from jpype import imports, _jpype
+from importlib.machinery import ModuleSpec
 
 from . import __version__
 from .constants import LAUNCH_PROPERTIES, LAUNCHSUPPORT, GHIDRA_INSTALL_DIR, UTILITY_JAR
@@ -65,6 +66,23 @@ def _get_libjvm_path(java_home: Path) -> Path:
         if p.suffix != ".debuginfo":
             return p
 
+class _PyhidraImportLoader:
+    """ (internal) Finder hook for importlib to handle Python mod conflicts. """
+
+    def find_spec(self, name, path, target=None):
+
+        # If jvm is not started then there is nothing to find.
+        if not _jpype.isStarted():
+            return None
+
+        if name.endswith('_') and _jpype.isPackage(name[:-1]):
+            return ModuleSpec(name, self)
+
+    def create_module(self, spec):
+        return _jpype._JPackage(spec.name[:-1])
+
+    def exec_module(self, fullname):
+        pass
 
 class PyhidraLauncher:
     """
@@ -146,6 +164,10 @@ class PyhidraLauncher:
                 convertStrings=True,
                 classpath=self.class_path
             )
+
+            # Install hook into python importlib
+            sys.meta_path.append(_PyhidraImportLoader())
+
             imports.registerDomain("ghidra")
 
             from ghidra import GhidraLauncher
