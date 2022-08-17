@@ -110,6 +110,21 @@ class PyhidraLauncher:
         self.vm_args += args
 
     @classmethod
+    def _copy_script_dir(self):
+        """
+        Copies the Ghidra script included with Pyhidra into the Extension
+        folder. This needs to happen before Ghidra is launched in order for
+        the script manager to recognize them.
+        """
+        pyhidra_path = Path(__file__).parent
+        lib_script_dir = pyhidra_path / "ghidra_scripts"
+
+        ghidra_path = get_current_application().extension_path / "pyhidra"
+        new_script_dir = ghidra_path / "ghidra_scripts"
+
+        shutil.copytree(lib_script_dir, new_script_dir)
+
+    @classmethod
     def _report_fatal_error(cls, title: str, msg: str) -> NoReturn:
         sys.exit(f"{title}: {msg}")
 
@@ -156,6 +171,10 @@ class PyhidraLauncher:
                 self.java_home = Path(java_home.rstrip())
 
             jvm = _get_libjvm_path(self.java_home)
+
+            # this needs to happen before Ghidra is launched so that the script
+            # directory is recognized and included in the Script Manager
+            self._copy_script_dir()
 
             jpype.startJVM(
                 str(jvm),
