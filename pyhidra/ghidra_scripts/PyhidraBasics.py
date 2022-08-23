@@ -25,12 +25,12 @@ java_list_double = [i * 2 for i in java_list]
 print(f"list comprehension result: {java_list_double}")
 
 # automatic calls to getters
-print("current program name: {currentProgram.name}") # calls currentProgram.getName()
+print(f"current program name: {currentProgram.name}") # calls currentProgram.getName()
 
 # here's an example of how this stuff might come in handy with Ghidra:
 print('current program memory blocks:\n')
 for block in currentProgram.memory.blocks:
-  print(block.name)
+    print(block.name)
 
 
 # many Ghidra functions need a Java-native array to pass or receive values
@@ -44,28 +44,28 @@ import jpype
 # get the block we need
 block = currentProgram.memory.getBlock('.text')
 if block:
-  # the verbose way of getting the array
-  byte_array_maker = jpype.JArray(jpype.JByte)
-  byte_array = byte_array_maker(10)
+    # the verbose way of getting the array
+    byte_array_maker = jpype.JArray(jpype.JByte)
+    byte_array = byte_array_maker(10)
 
-  # we also could have taken a shortcut with just:
-  # byte_array = jpype.JByte[10]
+    # we also could have taken a shortcut with just:
+    # byte_array = jpype.JByte[10]
 
-  # let's have a look at our new object
-  print(f"array class: {byte_array.__class__}")
-  # will be <java class 'byte[]'>
-  print(f"array length: {len(byte_array)}")
+    # let's have a look at our new object
+    print(f"array class: {byte_array.__class__}")
+    # will be <java class 'byte[]'>
+    print(f"array length: {len(byte_array)}")
 
-  # we can now use this array wherever a Java method requires a byte[] type
-  # the signature of getBytes is getBytes(Address addr, byte[] b)
-  block.getBytes(block.start, byte_array)
+    # we can now use this array wherever a Java method requires a byte[] type
+    # the signature of getBytes is getBytes(Address addr, byte[] b)
+    block.getBytes(block.start, byte_array)
 
-  # after the call, we can get the bytes out as desired
-  # we just put them in a list comprehension here
-  print(f"first 10 bytes of .text: {['%#x' % ((b+256)%256) for b in byte_array]}")
+    # after the call, we can get the bytes out as desired
+    # we just put them in a list comprehension here
+    print(f"first 10 bytes of .text: {['%#x' % ((b+256)%256) for b in byte_array]}")
 
 else:
-  print('no block named .text in this program.')
+    print('no block named .text in this program.')
 
 # see the user manual of JPype for more details on interoperability:
 # https://jpype.readthedocs.io/en/latest/userguide.html
