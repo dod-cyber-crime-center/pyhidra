@@ -1,5 +1,6 @@
 import contextlib
 import logging
+import os
 import platform
 import re
 import shutil
@@ -116,13 +117,14 @@ class PyhidraLauncher:
         folder. This needs to happen before Ghidra is launched in order for
         the script manager to recognize them.
         """
-        pyhidra_path = Path(__file__).parent
-        lib_script_dir = pyhidra_path / "ghidra_scripts"
-
         ghidra_path = get_current_application().extension_path / "pyhidra"
         new_script_dir = ghidra_path / "ghidra_scripts"
 
-        shutil.copytree(lib_script_dir, new_script_dir)
+        if not os.path.exists(new_script_dir):
+            pyhidra_path = Path(__file__).parent
+            lib_script_dir = pyhidra_path / "ghidra_scripts"
+
+            shutil.copytree(lib_script_dir, new_script_dir)
 
     @classmethod
     def _report_fatal_error(cls, title: str, msg: str) -> NoReturn:
