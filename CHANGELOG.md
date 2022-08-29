@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5] - 2022-08-29
+- Add script path to `sys.path` while running a script to allow importing other scripts in the same directory.
+- Added PyhidraBasics example script.
+- Prevent exception during shutdown from checking a Java exceptions type after the JVM has terminated.
+- Automatically alias Java packages by applying an underscore suffix to simplify importing when there is a name conflict.
+- Fixed bug causing the extension metadata to be written as a dictionary to the extension name field.
+
 ## [0.1.4] - 2022-06-01
 - Corrected server JVM library locating for openjdk on MAC
 - Ignore unmatched lines in application.properties
@@ -27,7 +34,8 @@
 ## 0.1.0 - 2021-06-14
 - Initial release
 
-[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.1.4...HEAD
+[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.1.5...HEAD
+[0.1.5]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.1.4...0.1.5
 [0.1.4]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.1.3...0.1.4
 [0.1.3]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.1.2...0.1.3
 [0.1.2]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.1.1...0.1.2

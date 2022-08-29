@@ -138,5 +138,13 @@ Ghidra **must** be started via `pyhidraw` and the plugin must be enabled for the
 
 ![](https://raw.githubusercontent.com/Defense-Cyber-Crime-Center/pyhidra/master/images/image-20220111152440065.png)
 
+### Handling Package Name Conflicts
 
+There may be some Python modules and Java packages with the same import path. When this occurs the Python module takes precedence.
+While jpype has its own mechanism for handling this situation, pyhidra automatically makes the Java package accessible by allowing
+it to be imported with an underscore appended to the package name.
 
+```python
+import pdb   # imports Python's pdb
+import pdb_  # imports Ghidra's pdb
+```

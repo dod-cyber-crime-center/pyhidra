@@ -1,15 +1,18 @@
 import importlib
-import importlib.machinery
 import importlib.util
 import inspect
 import logging
 import sys
 import traceback
 from collections.abc import ItemsView, KeysView
+from importlib.machinery import ModuleSpec, SourceFileLoader
+from pathlib import Path
 from jpype import JClass, JImplementationFor
 
 
 _NO_ATTRIBUTE = object()
+
+_headless_interpreter = None
 
 
 class _StaticMap(dict):
@@ -74,7 +77,7 @@ class _PythonFieldExposer:
 
 class _GhidraScriptModule:
 
-    def __init__(self, spec: importlib.machinery.ModuleSpec):
+    def __init__(self, spec: ModuleSpec):
         super().__setattr__("__dict__", spec.loader_state["script"])
 
     def __setattr__(self, attr, value):
@@ -83,13 +86,13 @@ class _GhidraScriptModule:
         super().__setattr__(attr, value)
 
 
-class _GhidraScriptLoader(importlib.machinery.SourceFileLoader):
+class _GhidraScriptLoader(SourceFileLoader):
 
-    def __init__(self, script: "PyGhidraScript", spec: importlib.machinery.ModuleSpec):
+    def __init__(self, script: "PyGhidraScript", spec: ModuleSpec):
         super().__init__(spec.name, spec.origin)
         spec.loader_state = {"script": script}
 
-    def create_module(self, spec: importlib.machinery.ModuleSpec):
+    def create_module(self, spec: ModuleSpec):
         return _GhidraScriptModule(spec)
 
 
@@ -105,7 +108,14 @@ class PyGhidraScript(dict):
             jobj = JClass("dc3.pyhidra.plugin.PyScriptProvider").PyhidraHeadlessScript()
         self._script = jobj
 
-        # ensure the builtin set takes priority over GhidraScript.set
+        global _headless_interpreter
+
+        from ghidra.util import SystemUtilities
+
+        if SystemUtilities.isInHeadlessMode() and _headless_interpreter is None:
+            _headless_interpreter = jobj
+
+        # ensure the builtin set takes precedence over GhidraScript.set
         super().__setitem__("set", set)
 
         # ensure that GhidraScript.print is used for print
@@ -172,9 +182,14 @@ class PyGhidraScript(dict):
             script_args = []
 
         orig_argv = sys.argv
+        script_root = str(Path(script_path).parent)
         try:
             # Temporarily set command line arguments.
             sys.argv = [script_path] + list(script_args)
+
+            # add the directory containing the script to the start of the path
+            # this provides the same import behavior as if the script was run normally
+            sys.path.insert(0, script_root)
 
             spec = importlib.util.spec_from_file_location('__main__', script_path)
             spec.loader = _GhidraScriptLoader(self, spec)
@@ -197,3 +212,48 @@ class PyGhidraScript(dict):
                 self._script.printerr(''.join(e.format()))
         finally:
             sys.argv = orig_argv
+            sys.path.remove(script_root)
+
+
+def get_current_interpreter():
+    """
+    Gets the underlying GhidraScript for the focused Pyhidra InteractiveConsole.
+    This will always return None unless it is being access from a function
+    called from within the interactive console.
+
+    :return: The GhidraScript for the active interactive console.
+    """
+
+    try:
+        from ghidra.util import SystemUtilities
+        from ghidra.framework.main import AppInfo
+
+        global _headless_interpreter
+
+        if SystemUtilities.isInHeadlessMode():
+            if _headless_interpreter is None:
+                # one hasn't been created yet so make one now
+                PyScriptProvider = JClass("dc3.pyhidra.plugin.PyScriptProvider")
+                _headless_interpreter = PyScriptProvider.PyhidraHeadlessScript()
+            return _headless_interpreter
+
+        project = AppInfo.getActiveProject()
+        if project is None:
+            return None
+
+        ts = project.getToolServices()
+        tool = None
+        for t in ts.getRunningTools():
+            if t.getActiveWindow().isFocused():
+                tool = t
+                break
+
+        if tool is None:
+            return None
+
+        for plugin in tool.getManagedPlugins():
+            if plugin.name == 'PyhidraPlugin':
+                return plugin.script
+
+    except ImportError:
+        return None

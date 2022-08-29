@@ -1,6 +1,5 @@
 import contextlib
 import logging
-import os
 import platform
 import re
 import shutil
@@ -27,6 +26,11 @@ def _jvm_args():
     suffix = "_" + platform.system().upper()
     option_pattern: re.Pattern = re.compile(fr"VMARGS(?:{suffix})?=(.+)")
     properties = []
+
+    if GHIDRA_INSTALL_DIR is None:
+        # reported in the launcher so it is displayed properly when using the gui_script
+        return None
+
     with open(LAUNCH_PROPERTIES, "r", encoding='utf-8') as fd:
         # this file is small so just read it at once
         for line in fd.readlines():
@@ -62,10 +66,12 @@ def _silence_java_output(stdout=True, stderr=True):
             System.setOut(out)
             System.setErr(err)
 
+
 def _get_libjvm_path(java_home: Path) -> Path:
     for p in java_home.glob("*/server/*jvm.*"):
         if p.suffix != ".debuginfo":
             return p
+
 
 class _PyhidraImportLoader:
     """ (internal) Finder hook for importlib to handle Python mod conflicts. """
@@ -84,6 +90,7 @@ class _PyhidraImportLoader:
 
     def exec_module(self, fullname):
         pass
+
 
 class PyhidraLauncher:
     """
@@ -109,22 +116,6 @@ class PyhidraLauncher:
         Add additional vmargs for launching the JVM
         """
         self.vm_args += args
-
-    @classmethod
-    def _copy_script_dir(self):
-        """
-        Copies the Ghidra script included with Pyhidra into the Extension
-        folder. This needs to happen before Ghidra is launched in order for
-        the script manager to recognize them.
-        """
-        ghidra_path = get_current_application().extension_path / "pyhidra"
-        new_script_dir = ghidra_path / "ghidra_scripts"
-
-        if not os.path.exists(new_script_dir):
-            pyhidra_path = Path(__file__).parent
-            lib_script_dir = pyhidra_path / "ghidra_scripts"
-
-            shutil.copytree(lib_script_dir, new_script_dir)
 
     @classmethod
     def _report_fatal_error(cls, title: str, msg: str) -> NoReturn:
@@ -166,6 +157,15 @@ class PyhidraLauncher:
         """
         if not jpype.isJVMStarted():
 
+            if GHIDRA_INSTALL_DIR is None:
+                self._report_fatal_error(
+                    "GHIDRA_INSTALL_DIR is not set",
+                    textwrap.dedent("""\
+                        Please set the GHIDRA_INSTALL_DIR environment variable
+                        to the directory where Ghidra is installed
+                    """).rstrip()
+                )
+
             self.check_ghidra_version()
 
             if self.java_home is None:
@@ -173,10 +173,6 @@ class PyhidraLauncher:
                 self.java_home = Path(java_home.rstrip())
 
             jvm = _get_libjvm_path(self.java_home)
-
-            # this needs to happen before Ghidra is launched so that the script
-            # directory is recognized and included in the Script Manager
-            self._copy_script_dir()
 
             jpype.startJVM(
                 str(jvm),
@@ -199,7 +195,7 @@ class PyhidraLauncher:
 
             from pyhidra.java.plugin import install
 
-            install()
+            install(self)
 
             # import properties to register the property customizer
             from . import properties as _
@@ -301,8 +297,9 @@ class GuiPyhidraLauncher(PyhidraLauncher):
             if t is not None:
                 try:
                     t.join()
-                except RuntimeError as e:
-                    if "java.lang.InterruptedException" not in e.args:
-                        raise
+                except Exception:
+                    # only possible if the JVM dies
+                    # handled by uncaught exception handler
+                    pass
         finally:
             jpype.shutdownGuiEnvironment()

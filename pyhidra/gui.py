@@ -1,6 +1,8 @@
 import os
 import sys
+import warnings
 
+from pyhidra import get_current_interpreter as _get_current_interpreter
 
 def gui():
     """
@@ -16,29 +18,9 @@ def gui():
 
 
 def get_current_interpreter():
-    """
-    Gets the underlying GhidraScript for the focused Pyhidra InteractiveConsole.
-    This will always return None unless it is being access from a function
-    called from within the interactive console.
+    warnings.warn(
+        "get_current_interpreter has been moved. Please use pyhidra.get_current_interpreter",
+        DeprecationWarning
+    )
+    return _get_current_interpreter()
 
-    :return: The GhidraScript for the active interactive console.
-    """
-    
-    try:
-        from ghidra.framework.main import AppInfo
-        project = AppInfo.getActiveProject()
-        if project is None:
-            return None
-        ts = project.getToolServices()
-        tool = None
-        for t in ts.getRunningTools():
-            if t.getActiveWindow().isFocused():
-                tool = t
-                break
-        if tool is None:
-            return None
-        for plugin in tool.getManagedPlugins():
-            if plugin.name == 'PyhidraPlugin':
-                return plugin.script
-    except ImportError:
-        return None

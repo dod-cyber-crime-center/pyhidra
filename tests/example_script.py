@@ -1,5 +1,8 @@
 import sys
 
+def import_test_function():
+    print("imported successfully")
+
 if __name__ == '__main__':
     print(" ".join(sys.argv))
     print(currentProgram)

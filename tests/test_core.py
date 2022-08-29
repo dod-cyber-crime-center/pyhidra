@@ -84,6 +84,13 @@ def test_arg_parser(strings_exe):
         pass
 
 
+def test_import_script(capsys):
+    script_path = pathlib.Path(__file__).parent / "import_test_script.py"
+    pyhidra.run_script(None, script_path)
+    captured = capsys.readouterr()
+    assert captured.out.rstrip() == "imported successfully"
+
+
 def test_import_ghidra_base_java_packages():
 
     def get_runtime_top_level_java_packages(launcher) -> set:
@@ -137,7 +144,7 @@ def test_import_ghidra_base_java_packages():
     import ghidra
     assert isinstance(ghidra.__loader__, jpype.imports._JImportLoader)
 
-    # Test import with conflict    
+    # Test import with conflict
     import pdb_
     assert isinstance(pdb_.__loader__, pyhidra.launcher._PyhidraImportLoader)
 

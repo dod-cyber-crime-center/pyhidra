@@ -7,8 +7,9 @@ from typing import NamedTuple, Union
 from pyhidra import __version__
 from pyhidra.constants import GHIDRA_INSTALL_DIR
 
-_APPLICATION_PATTERN = re.compile(r"^application\.(\S+?)=(.*)$")
-_APPLICATION_PATH = GHIDRA_INSTALL_DIR / "Ghidra" / "application.properties"
+if GHIDRA_INSTALL_DIR is not None:
+    _APPLICATION_PATTERN = re.compile(r"^application\.(\S+?)=(.*)$")
+    _APPLICATION_PATH = GHIDRA_INSTALL_DIR / "Ghidra" / "application.properties"
 
 
 # this is not a NamedTuple as the fields may change
@@ -96,7 +97,7 @@ def _properties_wrapper(cls):
             return cls.__annotations__[key](value)
 
         if ext is None:
-            return cls(_get_extension_defaults())
+            return cls(**_get_extension_defaults())
         lines = ext.read_text().splitlines()
         args = tuple(starmap(cast, map(lambda l: l.split('='), lines)))
         return cls(*args)

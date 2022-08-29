@@ -1,16 +1,15 @@
+import shutil
 from pathlib import Path
 
-from java.lang import ClassLoader
-from utility.application import ApplicationLayout
-
+from ghidra import GhidraLauncher
 from pyhidra.java.plugin.plugin import PyPhidraPlugin
 from pyhidra.javac import java_compile
 from pyhidra.version import get_current_application, ExtensionDetails
+from utility.application import ApplicationLayout
 
 
-
-PACKAGE = "dc3.pyhidra.plugin"
 PLUGIN_NAME = "pyhidra"
+_SCRIPTS_FOLDER = "ghidra_scripts"
 
 
 def _get_extension_details(layout: ApplicationLayout):
@@ -23,21 +22,26 @@ def _get_extension_details(layout: ApplicationLayout):
     )
 
 
-def install():
+def install(launcher):
     """
     Install the plugin in Ghidra
     """
-    path = get_current_application().extension_path / "pyhidra"
+    path = get_current_application().extension_path / PLUGIN_NAME
     ext = path / "extension.properties"
     manifest = path / "Module.manifest"
+    root = Path(__file__).parent
     if not manifest.exists():
         jar_path = path / "lib" / (PLUGIN_NAME + ".jar")
-        java_compile(Path(__file__).parent.parent, jar_path)
-        ClassLoader.getSystemClassLoader().addPath(jar_path.absolute())
+        java_compile(root.parent, jar_path)
 
-    if not manifest.exists():
         ext.write_text(str(ExtensionDetails()))
-        # required empty file, might be usable for version control in the future
+
+        # required empty file
         manifest.touch()
+
+        shutil.copytree(root / _SCRIPTS_FOLDER, path / _SCRIPTS_FOLDER)
+
+        # "restart" Ghidra
+        launcher.layout = GhidraLauncher.initializeGhidraEnvironment()
 
     PyPhidraPlugin.register()
