@@ -5,6 +5,7 @@ def import_test_function():
 
 if __name__ == '__main__':
     print(" ".join(sys.argv))
+    print(" ".join(getScriptArgs()))
     print(currentProgram)
     assert currentProgram.name == "strings.exe"
     assert currentProgram.listing

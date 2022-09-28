@@ -2,7 +2,6 @@ import shutil
 from pathlib import Path
 
 from ghidra import GhidraLauncher
-from pyhidra.java.plugin.plugin import PyPhidraPlugin
 from pyhidra.javac import java_compile
 from pyhidra.version import get_current_application, ExtensionDetails
 from utility.application import ApplicationLayout
@@ -44,4 +43,6 @@ def install(launcher):
         # "restart" Ghidra
         launcher.layout = GhidraLauncher.initializeGhidraEnvironment()
 
+    # import it at the end so interfaces in our java code may be implemented
+    from pyhidra.java.plugin.plugin import PyPhidraPlugin
     PyPhidraPlugin.register()

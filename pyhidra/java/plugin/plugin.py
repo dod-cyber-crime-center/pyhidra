@@ -1,4 +1,5 @@
 import contextlib
+import ctypes
 import itertools
 import rlcompleter
 import sys
@@ -6,8 +7,8 @@ import threading
 from code import InteractiveConsole
 
 from ghidra.app.plugin.core.console import CodeCompletion
-from ghidra.app.plugin.core.interpreter import InterpreterConnection, InterpreterPanelService
-from ghidra.util.task import DummyCancellableTaskMonitor
+from ghidra.app.plugin.core.interpreter import InterpreterConsole, InterpreterPanelService
+from ghidra.framework import Application
 from java.io import BufferedReader, InputStreamReader, PushbackReader
 from java.lang import ClassLoader, Runnable, String
 from java.util.function import Consumer
@@ -17,6 +18,23 @@ from utility.function import Callback
 
 from pyhidra.java.plugin.completions import PythonCodeCompleter
 from pyhidra.script import PyGhidraScript
+
+
+def _get_private_class(path: str) -> JClass:
+    gcl = ClassLoader.getSystemClassLoader()
+    return JClass(path, loader=gcl)
+
+
+def _get_plugin_class() -> JClass:
+    return _get_private_class("dc3.pyhidra.plugin.PyhidraPlugin")
+
+
+def _get_provider_class() -> JClass:
+    return _get_private_class("dc3.pyhidra.plugin.PyScriptProvider")
+
+
+def _get_interpreter_class() -> JClass:
+    return _get_private_class("dc3.pyhidra.plugin.interpreter.PyhidraInterpreterConnection")
 
 
 def _set_field(cls, fname, value, obj=None):
@@ -38,6 +56,10 @@ class PyConsole(InteractiveConsole):
 
     def __init__(self, py_plugin) -> None:
         super().__init__(locals=PyGhidraScript(py_plugin.script))
+        appVersion = Application.getApplicationVersion()
+        appName = Application.getApplicationReleaseName()
+        self.banner = f"Python Interpreter for Ghidra {appVersion} {appName}\n"
+        self.banner += f"Python {sys.version} on {sys.platform}"
         self._plugin = py_plugin
         console = py_plugin.service.createInterpreterPanel(py_plugin, False)
         self._console = console
@@ -47,20 +69,9 @@ class PyConsole(InteractiveConsole):
         self._err = console.getErrWriter()
         self._writer = self._out
         self._thread = None
-        state = self.locals._script.getState()
-        self.locals._script.set(state, DummyCancellableTaskMonitor(), console.getOutWriter())
-        console.addFirstActivationCallback(Callback @ self.interact)
-
-    def interact(self, banner=None, exitmsg=None):
-        from ghidra.framework import Application
-        version = Application.getApplicationVersion()
-        name = Application.getApplicationReleaseName()
-        banner = f"Python Interpreter for Ghidra {version} {name}\n"
-        banner += f"Python {sys.version} on {sys.platform}"
-        target = super().interact
-        targs = {'banner': banner}
-        self._thread = threading.Thread(target=target, name="Interpreter", kwargs=targs)
-        self._thread.start()
+        self._script = self.locals._script
+        state = self._script.getState()
+        self._script.set(state, console.getOutWriter())
 
     def raw_input(self, prompt=''):
         self._console.setPrompt(prompt)
@@ -81,35 +92,67 @@ class PyConsole(InteractiveConsole):
         Release the console resources
         """
         self._console.dispose()
+
+    def close(self):
         if self._thread is not None and self._thread.is_alive():
-            self._thread.join()
+
+            # raise a SystemExit in the interpreter thread once it resumes
+            # this will force this thread, and only this thread, to begin
+            # cleanup routines, __exit__ functions, finalizers, etc. and exit
+            exc = ctypes.py_object(SystemExit)
+            ctypes.pythonapi.PyThreadState_SetAsyncExc(self._thread.ident, exc)
+
+            # closing stdin will wake up any thread attempting to read from it
+            # this is required for the join to complete
+            self._console.getStdin().close()
+
+            # if we timeout then io out of our control is blocking it
+            # at this point we tried and it will complete properly once it stops blocking
+            self._thread.join(timeout=1.0)
+
+            # ditch the locals so the contents may be released
+            self.locals = dict()
+
+    def restart(self):
+        self.close()
+
+        # clear any existing output in the window and re-open the console input
+        self._console.clear()
+
+        # this resets the locals, and gets a new code compiler
+        super().__init__(locals=PyGhidraScript(self._script))
+
+        target = self.interact
+        targs = {"banner": self.banner}
+        self._thread = threading.Thread(target=target, name="Interpreter", kwargs=targs)
+        self._thread.start()
+
+    @contextlib.contextmanager
+    def redirect_writer(self):
+        self._writer = self._err
+        try:
+            yield
+        finally:
+            self._writer = self._out
 
     def showsyntaxerror(self, filename=None):
-        self._writer = self._err
-        super().showsyntaxerror(filename=filename)
-        self._writer = self._out
+        with self.redirect_writer():
+            super().showsyntaxerror(filename=filename)
 
     def showtraceback(self) -> None:
-        self._writer = self._err
-        super().showtraceback()
-        self._writer = self._out
+        with self.redirect_writer():
+            super().showtraceback()
 
     @contextlib.contextmanager
     def _run_context(self):
-        transaction = -1
+        self._script.start()
         success = False
-        program = self._plugin.program
-        if program is not None:
-            transaction = program.startTransaction("Python command")
         try:
             with contextlib.redirect_stdout(self._out), contextlib.redirect_stderr(self._err):
                 yield
                 success = True
         finally:
-            if transaction != -1:
-                program = self._plugin.program
-                if program is not None:
-                    program.endTransaction(transaction, success)
+            self._script.end(success)
 
     def runcode(self, code):
         with self._run_context():
@@ -118,30 +161,28 @@ class PyConsole(InteractiveConsole):
         self._err.flush()
 
 
-@JImplements(InterpreterConnection)
+@JImplements("dc3.pyhidra.plugin.interpreter.PyhidraInterpreterConnection")
 class PyPhidraPlugin:
     """
     The Python side PyhidraPlugin
     """
-
-    # pylint: disable=missing-function-docstring, invalid-name
 
     def __init__(self, plugin):
         if hasattr(self, '_plugin'):
             # this gets entered twice for some reason
             return
         self._plugin = plugin
-        gcl = ClassLoader.getSystemClassLoader()
-        plugin_cls = JClass("dc3.pyhidra.plugin.PyhidraPlugin", loader=gcl)
+        self._actions = None
+        plugin_cls = _get_plugin_class()
         _set_field(plugin_cls, "finalizer", Runnable @ self.dispose, plugin)
         self.console = PyConsole(self)
         self.completer = PythonCodeCompleter(self.console)
+        _get_interpreter_class().initialize(self)
 
     @staticmethod
     def register():
-        gcl = ClassLoader.getSystemClassLoader()
-        plugin = JClass("dc3.pyhidra.plugin.PyhidraPlugin", loader=gcl)
-        provider = JClass("dc3.pyhidra.plugin.PyScriptProvider", loader=gcl)
+        plugin = _get_plugin_class()
+        provider = _get_provider_class()
         _set_field(plugin, "initializer", Consumer @ PyPhidraPlugin)
         _set_field(provider, "scriptRunner", Consumer @ _run_script)
 
@@ -152,6 +193,9 @@ class PyPhidraPlugin:
         """
         Release the plugin resources
         """
+        if self._actions is not None:
+            for action in self._actions:
+                action.dispose()
         self.console.dispose()
 
     def _gen_completions(self, cmd: str):
@@ -185,3 +229,26 @@ class PyPhidraPlugin:
     @JOverride
     def getTitle(self):
         return "Pyhidra"
+
+    @JOverride
+    def getConsole(self) -> InterpreterConsole:
+        return self.console._console
+
+    @JOverride
+    def getPlugin(self):
+        return self._plugin
+
+    @JOverride
+    def close(self):
+        self.console.close()
+
+    @JOverride
+    def restart(self):
+        self.console.restart()
+
+    @JOverride
+    def setActions(self, actions):
+        if self._actions is not None:
+            for action in self._actions:
+                action.dispose()
+        self._actions = actions

@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import pyhidra
+import pyhidra.ghidra
 import pyhidra.gui
 
 
@@ -27,36 +28,57 @@ class PyhidraArgs(argparse.Namespace):
     Custom namespace for holding the command line arguments
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, parser: argparse.ArgumentParser, **kwargs):
         super().__init__(**kwargs)
+        self.parser = parser
+        self.valid = True
         self.verbose = False
-        self.binary_path = None
-        self.script_path = None
+        self.binary_path: Path = None
+        self.script_path: Path = None
         self.project_name = None
-        self.project_path = None
-        self.script_args = []
+        self.project_path: Path = None
+        self._script_args = []
 
     def func(self):
         """
         Run script or enter repl
         """
+        if not self.valid:
+            self.parser.print_usage()
+            return
+
         if self.script_path is not None:
-            pyhidra.run_script(
-                self.binary_path,
-                self.script_path,
-                project_location=self.project_path,
-                project_name=self.project_name,
-                script_args=self.script_args,
-                verbose=self.verbose
-            )
+            try:
+                pyhidra.run_script(
+                    self.binary_path,
+                    self.script_path,
+                    project_location=self.project_path,
+                    project_name=self.project_name,
+                    script_args=self._script_args,
+                    verbose=self.verbose
+                )
+            except KeyboardInterrupt:
+                # gracefully finish when cancelled
+                pass
         elif self.binary_path is not None:
-            from .ghidra import _flat_api
             args = self.binary_path, self.project_path, self.project_name, self.verbose
-            with _flat_api(*args) as api:
+            with pyhidra.ghidra._flat_api(*args) as api:
                 _interpreter(api)
         else:
             pyhidra.HeadlessPyhidraLauncher(verbose=self.verbose).start()
             _interpreter(globals())
+
+    @property
+    def script_args(self):
+        return self._script_args
+
+    @script_args.setter
+    def script_args(self, value):
+        if self._script_args is None:
+            self._script_args = value
+        else:
+            # append any remaining args to the ones which were previously consumed
+            self._script_args.extend(value)
 
 
 class PathAction(argparse.Action):
@@ -67,35 +89,50 @@ class PathAction(argparse.Action):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.nargs = '*'
-        self.help = "Headless script and/or binary path. "\
-            "If neither are provided pyhidra will drop into a repl."
-        self.type = Path
+        self.type = str
 
-    def __call__(self, parser, namespace, values, option_string=None):
-        count = 0
-        for p in values:
-            if p.exists() and p.is_file():
-                if p.suffix == ".py":
-                    if namespace.script_path is not None:
-                        # assume an additional script is meant to be a parameter to the first one
-                        break
-                    namespace.script_path = p
-                else:
-                    if namespace.binary_path is not None:
-                        if namespace.script_path is None:
-                            raise ValueError("binary_path specified multiple times")
-                        # assume it is a script parameter
-                        break
-                    namespace.binary_path = p
-                count += 1
-            else:
-                break
-            if count > 1:
-                break
-        values[:] = values[count:]
+    def __call__(self, parser, namespace: PyhidraArgs, values, option_string=None):
+
+        if not values:
+            return
+
+        if namespace.script_path is not None:
+            # Any arguments after the script path get passed to the script
+            namespace.script_args = values
+            return
+
+        value = Path(values.pop(0))
+
+        if not value.exists():
+            # File must exist
+            namespace.valid = False
+
+        if value.suffix == ".py":
+            namespace.script_path = value
+            namespace.script_args = values
+            return
+
+        if namespace.binary_path is None:
+            # Peek at the next value, if present, to check if it is a script
+            # The optional binary file MUST come before the script
+            if len(values) > 0 and not values[0].endswith(".py"):
+                namespace.valid = False
+
+            namespace.binary_path = value
+
+        if not values:
+            return
+
+        # Recurse until all values are consumed
+        # The remaining arguments in the ArgParser was a lie for pretty help text
+        # and to pick up trailing optional arguments meant for the script
+        self(parser, namespace, values)
+
 
 def _get_parser():
-    parser = argparse.ArgumentParser(prog="pyhidra")
+    usage = "pyhidra [-h] [-v] [-g] [-s] [--project-name name] [--project-path path] " \
+        "[binary_path] [script_path] ..."
+    parser = argparse.ArgumentParser(prog="pyhidra", usage=usage)
     parser.add_argument(
         "-v",
         "--verbose",
@@ -121,9 +158,15 @@ def _get_parser():
             help="Creates a shortcut that can be pinned to the taskbar (Windows only)"
         )
     parser.add_argument(
-        "script_path | binary_path",
-        metavar="script | binary",
-        action=PathAction
+        "binary_path",
+        action=PathAction,
+        help="Optional binary path"
+    )
+    parser.add_argument(
+        "script_path",
+        action=PathAction,
+        help="Headless script path. The script must have a .py extension. " \
+            "If a script is not provided, pyhidra will drop into a repl."
     )
     parser.add_argument(
         "script_args",
@@ -153,7 +196,8 @@ def main():
     """
     pyhidra module main function
     """
-    _get_parser().parse_args(namespace=PyhidraArgs()).func()
+    parser = _get_parser()
+    parser.parse_args(namespace=PyhidraArgs(parser)).func()
 
 
 if __name__ == "__main__":

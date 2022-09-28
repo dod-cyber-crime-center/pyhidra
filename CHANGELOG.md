@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0] - 2022-09-27
+- Fixed issue with terminal being taken over when running `pyhidraw` on Linux/Mac.
+- Added cancel and reset buttons to the pyhidra interpreter in the Ghidra plugin.
+- Force the pyhidra interpreter thread to finish and exit when the Ghidra plugin is closed.
+- Honor the `safe_path` option introduced in Python 3.11. When set the script path will not be added to `sys.path` when running a script.
+- Enforce command line interface requirement that the pyhidra script must be the last positional argument before the script arguments.
+- Fixed bug causing `print` to be redirected in headless mode.
+
 ## [0.1.5] - 2022-08-29
 - Add script path to `sys.path` while running a script to allow importing other scripts in the same directory.
 - Added PyhidraBasics example script.
@@ -34,7 +42,8 @@
 ## 0.1.0 - 2021-06-14
 - Initial release
 
-[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.1.5...HEAD
+[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.2.0...HEAD
+[0.2.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.1.5...0.2.0
 [0.1.5]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.1.4...0.1.5
 [0.1.4]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.1.3...0.1.4
 [0.1.3]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.1.2...0.1.3

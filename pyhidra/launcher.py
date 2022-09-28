@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import textwrap
+import threading
 from pathlib import Path
 from typing import NoReturn
 
@@ -287,19 +288,15 @@ class GuiPyhidraLauncher(PyhidraLauncher):
     def _launch(self):
         import ctypes
         from ghidra import GhidraRun
+        from java.lang import Runtime, Thread
 
         if sys.platform == "win32":
             appid = ctypes.c_wchar_p(get_current_application().name)
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appid)
         jpype.setupGuiEnvironment(lambda: GhidraRun().launch(self.layout, self.args))
+        is_exiting = threading.Event()
+        Runtime.getRuntime().addShutdownHook(Thread(is_exiting.set))
         try:
-            t = GuiPyhidraLauncher._get_thread("main")
-            if t is not None:
-                try:
-                    t.join()
-                except Exception:
-                    # only possible if the JVM dies
-                    # handled by uncaught exception handler
-                    pass
+            is_exiting.wait()
         finally:
             jpype.shutdownGuiEnvironment()

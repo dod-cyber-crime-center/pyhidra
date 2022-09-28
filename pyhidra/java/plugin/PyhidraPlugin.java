@@ -1,18 +1,16 @@
 package dc3.pyhidra.plugin;
 
-import java.io.PrintWriter;
 import java.util.function.Consumer;
 
+import dc3.pyhidra.plugin.interpreter.InterpreterGhidraScript;
 import ghidra.MiscellaneousPluginPackage;
 import ghidra.app.plugin.core.interpreter.InterpreterPanelService;
 import ghidra.app.plugin.PluginCategoryNames;
 import ghidra.app.plugin.ProgramPlugin;
-import ghidra.app.script.GhidraScript;
 import ghidra.app.script.GhidraState;
 import ghidra.framework.plugintool.PluginInfo;
 import ghidra.framework.plugintool.PluginTool;
 import ghidra.framework.plugintool.util.PluginStatus;
-import ghidra.program.model.address.Address;
 import ghidra.program.model.listing.Program;
 import ghidra.program.util.ProgramLocation;
 import ghidra.program.util.ProgramSelection;
@@ -48,8 +46,15 @@ public final class PyhidraPlugin extends ProgramPlugin {
 	}
 
 	@Override
+	protected void close() {
+		script.close();
+		super.close();
+	}
+
+	@Override
 	public void dispose() {
 		finalizer.run();
+		super.dispose();
 	}
 
 	@Override
@@ -77,61 +82,5 @@ public final class PyhidraPlugin extends ProgramPlugin {
 	@Override
 	protected void highlightChanged(ProgramSelection highlight) {
 		script.setCurrentHighlight(highlight);
-	}
-
-	public static class InterpreterGhidraScript extends GhidraScript {
-
-		private InterpreterGhidraScript() {
-		}
-
-		@Override
-		public void run() {
-		}
-
-		public Address getCurrentAddress() {
-			return currentAddress;
-		}
-
-		public ProgramLocation getCurrentLocation() {
-			return currentLocation;
-		}
-
-		public ProgramSelection getCurrentSelection() {
-			return currentSelection;
-		}
-
-		public ProgramSelection getCurrentHighlight() {
-			return currentHighlight;
-		}
-
-		public PrintWriter getWriter() {
-			return writer;
-		}
-
-		public void setCurrentProgram(Program program) {
-			currentProgram = program;
-			state.setCurrentProgram(program);
-		}
-
-		public void setCurrentAddress(Address address) {
-			currentAddress = address;
-			state.setCurrentAddress(address);
-		}
-
-		public void setCurrentLocation(ProgramLocation location) {
-			currentLocation = location;
-			currentAddress = location != null ? location.getAddress() : null;
-			state.setCurrentLocation(location);
-		}
-
-		public void setCurrentSelection(ProgramSelection selection) {
-			currentSelection = selection;
-			state.setCurrentSelection(selection);
-		}
-
-		public void setCurrentHighlight(ProgramSelection highlight) {
-			currentHighlight = highlight;
-			state.setCurrentHighlight(highlight);
-		}
 	}
 }

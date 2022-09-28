@@ -8,6 +8,7 @@ from collections.abc import ItemsView, KeysView
 from importlib.machinery import ModuleSpec, SourceFileLoader
 from pathlib import Path
 from jpype import JClass, JImplementationFor
+from typing import List
 
 
 _NO_ATTRIBUTE = object()
@@ -118,9 +119,10 @@ class PyGhidraScript(dict):
         # ensure the builtin set takes precedence over GhidraScript.set
         super().__setitem__("set", set)
 
-        # ensure that GhidraScript.print is used for print
-        # so the output goes to the expected console
-        super().__setitem__("print", self._print_wrapper())
+        if not SystemUtilities.isInHeadlessMode():
+            # ensure that GhidraScript.print is used for print
+            # so the output goes to the expected console
+            super().__setitem__("print", self._print_wrapper())
 
         super().__setitem__("__this__", self._script)
 
@@ -164,7 +166,7 @@ class PyGhidraScript(dict):
         """
         self._script.set(state, monitor, writer)
 
-    def run(self, script_path: str = None, script_args: list = None):
+    def run(self, script_path: str = None, script_args: List[str] = None):
         """
         Run this GhidraScript
 
@@ -180,16 +182,22 @@ class PyGhidraScript(dict):
 
         if script_args is None:
             script_args = []
+        else:
+            self._script.setScriptArgs(script_args)
 
         orig_argv = sys.argv
         script_root = str(Path(script_path).parent)
+
+        # honor the python safe_path flag introduced in 3.11
+        safe_path = bool(getattr(sys.flags, "safe_path", 0))
         try:
             # Temporarily set command line arguments.
             sys.argv = [script_path] + list(script_args)
 
-            # add the directory containing the script to the start of the path
-            # this provides the same import behavior as if the script was run normally
-            sys.path.insert(0, script_root)
+            if not safe_path:
+                # add the directory containing the script to the start of the path
+                # this provides the same import behavior as if the script was run normally
+                sys.path.insert(0, script_root)
 
             spec = importlib.util.spec_from_file_location('__main__', script_path)
             spec.loader = _GhidraScriptLoader(self, spec)
@@ -212,7 +220,9 @@ class PyGhidraScript(dict):
                 self._script.printerr(''.join(e.format()))
         finally:
             sys.argv = orig_argv
-            sys.path.remove(script_root)
+
+            if not safe_path:
+                sys.path.remove(script_root)
 
 
 def get_current_interpreter():
