@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.2.1] - 2022-11-03
+- Adds compatibility for Ghidra 10.2.
+
 ## [0.2.0] - 2022-09-27
 - Fixed issue with terminal being taken over when running `pyhidraw` on Linux/Mac.
 - Added cancel and reset buttons to the pyhidra interpreter in the Ghidra plugin.
@@ -42,7 +45,8 @@
 ## 0.1.0 - 2021-06-14
 - Initial release
 
-[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.2.0...HEAD
+[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.2.1...HEAD
+[0.2.1]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.2.0...0.2.1
 [0.2.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.1.5...0.2.0
 [0.1.5]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.1.4...0.1.5
 [0.1.4]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.1.3...0.1.4

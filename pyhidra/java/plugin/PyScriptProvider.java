@@ -28,11 +28,21 @@ public final class PyScriptProvider extends PythonScriptProvider {
 	private static Consumer<GhidraScript> scriptRunner = null;
 
 	@Override
-	public GhidraScript getScriptInstance(ResourceFile sourceFile, PrintWriter writer)
-			throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+	public GhidraScript getScriptInstance(ResourceFile sourceFile, PrintWriter writer) {
 		// check if python is running or not and if not let jython handle it
 		if (scriptRunner == null || GhidraScriptUtil.isSystemScript(sourceFile)) {
-			return super.getScriptInstance(sourceFile, writer);
+			try {
+				return super.getScriptInstance(sourceFile, writer);
+			}
+			catch (Throwable t) {
+				// returning null isn't allowed
+				// instead return a dummy script instance to report the error
+				ErrorHandlingGhidraScript gs = new ErrorHandlingGhidraScript();
+				gs.setException(t);
+				gs.setWriter(writer);
+				gs.setSourceFile(sourceFile);
+				return gs;
+			}
 		}
 
 		GhidraScript script = SystemUtilities.isInHeadlessMode() ? new PyhidraHeadlessScript()
@@ -99,6 +109,26 @@ public final class PyScriptProvider extends PythonScriptProvider {
 			public _ExposedField(String name, Class<?> type) {
 				super(MethodHandles.lookup().in(PyhidraHeadlessScript.class), name, type);
 			}
+		}
+	}
+
+	private static class ErrorHandlingGhidraScript extends GhidraScript {
+
+		private Throwable exception;
+
+		private void setException(Throwable exception) {
+			this.exception = exception;
+		}
+
+		private void setWriter(PrintWriter writer) {
+			this.writer = writer;
+		}
+
+		@Override
+		public void run() {
+			writer.println("An exception occured while creating the script instance for " +
+				sourceFile.getName());
+			exception.printStackTrace(writer);
 		}
 	}
 }
