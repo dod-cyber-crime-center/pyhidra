@@ -1,5 +1,7 @@
 import argparse
 import code
+import logging
+
 import sys
 from pathlib import Path
 
@@ -196,6 +198,7 @@ def main():
     """
     pyhidra module main function
     """
+    logging.basicConfig(level=logging.INFO)
     parser = _get_parser()
     parser.parse_args(namespace=PyhidraArgs(parser)).func()
 

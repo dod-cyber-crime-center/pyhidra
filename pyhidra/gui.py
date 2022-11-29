@@ -1,4 +1,5 @@
-import contextlib
+
+import logging
 import os
 import platform
 import sys
@@ -6,8 +7,12 @@ import warnings
 
 from pyhidra import get_current_interpreter as _get_current_interpreter
 
+logger = logging.getLogger(__name__)
+
 
 def _gui():
+    logging.basicConfig(level=logging.INFO)
+
     if platform.system() == 'Windows':
         # gui_script works like it is supposed to on windows
         gui()

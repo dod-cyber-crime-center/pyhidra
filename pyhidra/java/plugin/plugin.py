@@ -1,6 +1,7 @@
 import contextlib
 import ctypes
 import itertools
+import logging
 import rlcompleter
 import sys
 import threading
@@ -11,13 +12,16 @@ from ghidra.app.plugin.core.interpreter import InterpreterConsole, InterpreterPa
 from ghidra.framework import Application
 from java.io import BufferedReader, InputStreamReader, PushbackReader
 from java.lang import ClassLoader, Runnable, String
+from java.util import Collections
 from java.util.function import Consumer
 from jpype import JClass, JImplements, JOverride
 from resources import ResourceManager
-from utility.function import Callback
 
 from pyhidra.java.plugin.completions import PythonCodeCompleter
 from pyhidra.script import PyGhidraScript
+
+
+logger = logging.getLogger(__name__)
 
 
 def _get_private_class(path: str) -> JClass:
@@ -173,6 +177,7 @@ class PyPhidraPlugin:
             return
         self._plugin = plugin
         self._actions = None
+        self._logged_completions_change = False
         plugin_cls = _get_plugin_class()
         _set_field(plugin_cls, "finalizer", Runnable @ self.dispose, plugin)
         self.console = PyConsole(self)
@@ -219,8 +224,20 @@ class PyPhidraPlugin:
         return self._plugin.getTool().getService(InterpreterPanelService.class_)
 
     @JOverride
-    def getCompletions(self, cmd: str):
-        return self.completer.get_completions(cmd)
+    def getCompletions(self, *args):
+        try:
+            if len(args) == 2:
+                line, pos = args
+                line = line[:pos]
+            else:
+                # older versions of Ghidra don't have the `end` argument.
+                line, = args
+            return self.completer.get_completions(line)
+        except Exception as e:
+            if not self._logged_completions_change:
+                self._logged_completions_change = True
+                logger.exception(e)
+            return Collections.emptyList()
 
     @JOverride
     def getIcon(self):

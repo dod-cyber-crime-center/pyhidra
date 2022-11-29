@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.3.0] - 2022-11-29
+- Added ability to install custom plugins from the launcher using `install_plugin()`.
+- Added ability to register entry_points for customizing launcher before starting up.
+
 ## [0.2.1] - 2022-11-03
 - Adds compatibility for Ghidra 10.2.
 
@@ -45,7 +49,8 @@
 ## 0.1.0 - 2021-06-14
 - Initial release
 
-[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.2.1...HEAD
+[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.3.0...HEAD
+[0.3.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.2.1...0.3.0
 [0.2.1]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.2.0...0.2.1
 [0.2.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.1.5...0.2.0
 [0.1.5]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.1.4...0.1.5

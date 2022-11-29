@@ -64,6 +64,58 @@ launcher.add_vmargs("-Dlog4j2.formatMsgNoLookups=true")
 launcher.start()
 ```
 
+### Registering an Entry Point
+
+The `PyhidraLauncher` can also be configured through the use of a registered entry point on your own python project.
+This is useful for installing your own Ghidra plugin which uses pyhidra and self-compiles.
+
+First create an [entry_point](https://setuptools.pypa.io/en/latest/userguide/entry_point.html) for `pyhidra.setup`
+pointing to a single argument function which accepts the launcher instance.
+
+```python
+# setup.py
+from setuptools import setup
+
+setup(
+    # ...,
+    entry_points={
+        'pyhidra.setup': [
+            'acme_plugin = acme.ghidra_plugin.install:setup',
+        ]
+    }
+)
+```
+
+
+Then we create the target function.
+This function will be called every time a user starts a pyhidra launcher.
+In the same fashion, another entry point `pyhidra.pre_launch` may be registered and will be called after Ghidra and all
+plugins have been loaded.
+
+```python
+# acme/ghidra_plugin/install.py
+from pathlib import Path
+import pyhidra
+
+def setup(launcher):
+    """
+    Run by pyhidra launcher to install our plugin.
+    """
+    launcher.add_classpaths("log4j-core-2.17.1.jar", "log4j-api-2.17.1.jar")
+    launcher.add_vmargs("-Dlog4j2.formatMsgNoLookups=true")
+
+    # Install our plugin.
+    source_path = Path(__file__).parent / "java" / "plugin"  # path to uncompiled .java code
+    details = pyhidra.ExtensionDetails(
+        name="acme_plugin",
+        description="My Cool Plugin",
+        author="acme",
+        plugin_version="1.2",
+    )
+    launcher.install_plugin(source_path, details)  # install plugin (if not already)
+```
+
+
 ### Analyze a File
 
 To have pyhidra setup a binary file for you, use the `open_program()` function.

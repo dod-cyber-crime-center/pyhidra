@@ -1,8 +1,9 @@
-import functools
+
+from dataclasses import dataclass, asdict, field
 import re
-from itertools import starmap
+from datetime import datetime
+
 from pathlib import Path
-from typing import NamedTuple, Union
 
 from pyhidra import __version__
 from pyhidra.constants import GHIDRA_INSTALL_DIR
@@ -72,51 +73,29 @@ def get_ghidra_version() -> str:
     return _CURRENT_GHIDRA_VERSION
 
 
-_EXTENSION_DEFAULTS: dict = None
-
-def _get_extension_defaults() -> dict:
-    global _EXTENSION_DEFAULTS
-    if _EXTENSION_DEFAULTS is None:
-        _EXTENSION_DEFAULTS = {
-            "name":  "pyhidra",
-            "description":  "Native Python Plugin",
-            "author":  "Department of Defense Cyber Crime Center (DC3)",
-            "createdOn":  "",
-            "version": get_ghidra_version(),
-            "pyhidra": __version__
-        }
-    return _EXTENSION_DEFAULTS
-
-def _properties_wrapper(cls):
-    @functools.wraps(cls)
-    def wrapper(ext: Union[Path, dict] = None):
-        if isinstance(ext, dict):
-            return cls(**ext)
-        def cast(key, value):
-            # __annotations__ is created for NamedTuple since its first implementation
-            return cls.__annotations__[key](value)
-
-        if ext is None:
-            return cls(**_get_extension_defaults())
-        lines = ext.read_text().splitlines()
-        args = tuple(starmap(cast, map(lambda l: l.split('='), lines)))
-        return cls(*args)
-    return wrapper
-
-
-@_properties_wrapper
-class ExtensionDetails(NamedTuple):
+@dataclass
+class ExtensionDetails:
     """
     Python side ExtensionDetails
     """
+    name: str
+    description: str
+    author: str
+    createdOn: str = field(default_factory=lambda: str(datetime.now()))
+    version: str = field(default_factory=get_ghidra_version)
+    plugin_version: str = "0.0.1"
 
-    name: str = "pyhidra"
-    description: str = "Native Python Plugin"
-    author: str = "Department of Defense Cyber Crime Center (DC3)"
-    createdOn: str = ""
-    version: str = None
-    pyhidra: str = __version__
+    @classmethod
+    def from_file(cls, ext_path: Path):
+        def cast(key, value):
+            return cls.__annotations__[key](value)
+        lines = ext_path.read_text().splitlines()
+        kwargs = {
+            key: cast(key, value)
+            for key, value in map(lambda l: l.split("="), lines)
+            if key in cls.__annotations__
+        }
+        return cls(**kwargs)
 
     def __repr__(self):
-        cls = self.__class__
-        return '\n'.join(starmap(lambda i, k: f"{k}={self[i]}", enumerate(cls.__annotations__)))
+        return "\n".join(f"{key}={value}" for key, value in asdict(self).items())
