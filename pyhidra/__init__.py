@@ -9,7 +9,7 @@ from .version import ExtensionDetails
 
 
 __all__ = [
-    "run_script", "start", "open_program",
+    "run_script", "start", "open_program", "get_current_interpreter",
     "DeferredPyhidraLauncher", "HeadlessPyhidraLauncher", "GuiPyhidraLauncher",
     "ExtensionDetails",
 ]
