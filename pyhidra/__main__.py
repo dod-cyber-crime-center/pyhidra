@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 import pyhidra
-import pyhidra.ghidra
+import pyhidra.core
 import pyhidra.gui
 
 
@@ -35,6 +35,7 @@ class PyhidraArgs(argparse.Namespace):
         self.parser = parser
         self.valid = True
         self.verbose = False
+        self.skip_analysis = False
         self.binary_path: Path = None
         self.script_path: Path = None
         self.project_name = None
@@ -57,14 +58,21 @@ class PyhidraArgs(argparse.Namespace):
                     project_location=self.project_path,
                     project_name=self.project_name,
                     script_args=self._script_args,
-                    verbose=self.verbose
+                    verbose=self.verbose,
+                    analyze=not self.skip_analsis
                 )
             except KeyboardInterrupt:
                 # gracefully finish when cancelled
                 pass
         elif self.binary_path is not None:
-            args = self.binary_path, self.project_path, self.project_name, self.verbose
-            with pyhidra.ghidra._flat_api(*args) as api:
+            args = (
+                self.binary_path,
+                self.project_path,
+                self.project_name,
+                self.verbose,
+                not self.skip_analsis
+            )
+            with pyhidra.core._flat_api(*args) as api:
                 _interpreter(api)
         else:
             pyhidra.HeadlessPyhidraLauncher(verbose=self.verbose).start()
@@ -132,7 +140,9 @@ class PathAction(argparse.Action):
 
 
 def _get_parser():
-    usage = "pyhidra [-h] [-v] [-g] [-s] [--project-name name] [--project-path path] " \
+    is_win32 = sys.platform == "win32"
+    extra_flag = "[-s] " if is_win32 else ""
+    usage = f"pyhidra [-h] [-v] [-g] {extra_flag}[--no-analysis] [--project-name name] [--project-path path] " \
         "[binary_path] [script_path] ..."
     parser = argparse.ArgumentParser(prog="pyhidra", usage=usage)
     parser.add_argument(
@@ -150,7 +160,7 @@ def _get_parser():
         const=pyhidra.gui.gui,
         help="Start Ghidra GUI"
     )
-    if sys.platform == "win32":
+    if is_win32:
         parser.add_argument(
             "-s",
             "--shortcut",
@@ -159,6 +169,12 @@ def _get_parser():
             const=_create_shortcut,
             help="Creates a shortcut that can be pinned to the taskbar (Windows only)"
         )
+    parser.add_argument(
+        "--skip-analysis",
+        dest="skip_analysis",
+        action="store_true",
+        help="Switch to skip analysis after loading the binary file if provided"
+    )
     parser.add_argument(
         "binary_path",
         action=PathAction,
@@ -198,7 +214,6 @@ def main():
     """
     pyhidra module main function
     """
-    logging.basicConfig(level=logging.INFO)
     parser = _get_parser()
     parser.parse_args(namespace=PyhidraArgs(parser)).func()
 

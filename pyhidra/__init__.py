@@ -1,8 +1,8 @@
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 # Expose API
-from .ghidra import run_script, start, open_program
+from .core import run_script, start, open_program
 from .script import get_current_interpreter
 from .launcher import DeferredPyhidraLauncher, HeadlessPyhidraLauncher, GuiPyhidraLauncher
 from .version import ExtensionDetails

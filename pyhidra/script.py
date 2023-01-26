@@ -119,20 +119,7 @@ class PyGhidraScript(dict):
         # ensure the builtin set takes precedence over GhidraScript.set
         super().__setitem__("set", set)
 
-        if not SystemUtilities.isInHeadlessMode():
-            # ensure that GhidraScript.print is used for print
-            # so the output goes to the expected console
-            super().__setitem__("print", self._print_wrapper())
-
         super().__setitem__("__this__", self._script)
-
-    def _print_wrapper(self):
-        def _print(*objects, sep=' ', end='\n', file=None, flush=False):
-            if file is None:
-                file = self._script.writer
-            print(*objects, sep=sep, end=end, file=file, flush=flush)
-        _print.__doc__ = print.__doc__
-        return _print
 
     def __missing__(self, k):
         attr = getattr(self._script, k, _NO_ATTRIBUTE)

@@ -27,6 +27,13 @@ Pyhidra was initially developed for use with Dragodis and is designed to be inst
 5. Check and enable Pyhidra as seen in the image below.
  ![](https://raw.githubusercontent.com/Defense-Cyber-Crime-Center/pyhidra/master/images/image-20220111154120531.png)
 
+### Manual Plugin Installation
+
+If pyhidra is planned to be used in a multiprocessing deployed server, the following must be run to allow the Ghidra plugins to be compiled and installed before use.
+
+```console
+python -m pyhidra.install_plugins
+```
 ## Usage
 
 

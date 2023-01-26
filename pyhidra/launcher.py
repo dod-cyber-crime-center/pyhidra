@@ -1,5 +1,6 @@
 import contextlib
 import importlib.metadata
+import inspect
 import logging
 import platform
 import re
@@ -17,9 +18,10 @@ from importlib.machinery import ModuleSpec
 
 from . import __version__
 from .constants import LAUNCH_PROPERTIES, LAUNCHSUPPORT, GHIDRA_INSTALL_DIR, UTILITY_JAR
+from .javac import java_compile
+from .script import PyGhidraScript
 from .version import get_current_application, get_ghidra_version, MINIMUM_GHIDRA_VERSION, \
     ExtensionDetails
-from .javac import java_compile
 
 
 logger = logging.getLogger(__name__)
@@ -383,6 +385,38 @@ def _popup_error(header: str, msg: str) -> NoReturn:
     sys.exit(msg)
 
 
+class _PyhidraStdOut:
+
+    def __init__(self, stream):
+        self._stream = stream
+
+    def _get_current_script(self) -> "PyGhidraScript":
+        for entry in inspect.stack():
+            f_globals = entry.frame.f_globals
+            if isinstance(f_globals, PyGhidraScript):
+                return f_globals
+
+    def flush(self):
+        script = self._get_current_script()
+        if script is not None:
+            writer = script._script.writer
+            if writer is not None:
+                writer.flush()
+                return
+
+        self._stream.flush()
+
+    def write(self, s: str) -> int:
+        script = self._get_current_script()
+        if script is not None:
+            writer = script._script.writer
+            if writer is not None:
+                writer.write(s)
+                return len(s)
+
+        return self._stream.write(s)
+
+
 class GuiPyhidraLauncher(PyhidraLauncher):
     """
     GUI pyhidra launcher
@@ -411,10 +445,14 @@ class GuiPyhidraLauncher(PyhidraLauncher):
         if sys.platform == "win32":
             appid = ctypes.c_wchar_p(get_current_application().name)
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appid)
-        jpype.setupGuiEnvironment(lambda: GhidraRun().launch(self.layout, self.args))
-        is_exiting = threading.Event()
-        Runtime.getRuntime().addShutdownHook(Thread(is_exiting.set))
-        try:
-            is_exiting.wait()
-        finally:
-            jpype.shutdownGuiEnvironment()
+
+        stdout = _PyhidraStdOut(sys.stdout)
+        stderr = _PyhidraStdOut(sys.stderr)
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            jpype.setupGuiEnvironment(lambda: GhidraRun().launch(self.layout, self.args))
+            is_exiting = threading.Event()
+            Runtime.getRuntime().addShutdownHook(Thread(is_exiting.set))
+            try:
+                is_exiting.wait()
+            finally:
+                jpype.shutdownGuiEnvironment()

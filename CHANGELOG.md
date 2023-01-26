@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+- Added manual plugin installation helper.
+- Analyze the program by default, if provided, when entering the REPL with pyhidra.
+- Added language and compiler arguments to `open_program` and `run_script`.
+- Removed logging setup during startup (#21)
+
 ## [0.3.0] - 2022-11-29
 - Added ability to install custom plugins from the launcher using `install_plugin()`.
 - Added ability to register entry_points for customizing launcher before starting up.

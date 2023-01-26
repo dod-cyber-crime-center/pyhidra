@@ -160,3 +160,13 @@ class TestArgParser:
             str(self.ghost_exe)
         ]
         assert args.script_args == script_args
+
+    def test_skip_analysis(self):
+        args = self.parse(
+            "--skip-analysis"
+        )
+        assert args.skip_analysis
+
+    def test_default_analysis(self):
+        args = self.parse()
+        assert not args.skip_analysis

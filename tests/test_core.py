@@ -5,6 +5,7 @@ import importlib
 import sys
 import jpype
 import pyhidra
+import pytest
 
 EXE_NAME = "strings.exe"
 
@@ -12,7 +13,7 @@ EXE_NAME = "strings.exe"
 def test_run_script(capsys, shared_datadir: Path):
     strings_exe = shared_datadir / EXE_NAME
     script_path = shared_datadir / "example_script.py"
-    pyhidra.run_script(strings_exe, script_path, script_args=["my", "--commands"])
+    pyhidra.run_script(strings_exe, script_path, script_args=["my", "--commands"], analyze=False)
     captured = capsys.readouterr()
 
     expected = textwrap.dedent(f"""\
@@ -26,10 +27,46 @@ def test_run_script(capsys, shared_datadir: Path):
 
 def test_open_program(shared_datadir: Path):
     strings_exe = shared_datadir / EXE_NAME
-    with pyhidra.open_program(strings_exe, analyze=False) as flat_api:
+    with pyhidra.open_program(strings_exe, False, language="x86:LE:32:default", compiler="windows") as flat_api:
         assert flat_api.currentProgram.name == strings_exe.name
         assert flat_api.getCurrentProgram().listing
         assert flat_api.getCurrentProgram().changeable
+
+
+def test_bad_language(shared_datadir: Path):
+    strings_exe = shared_datadir / EXE_NAME
+    with pytest.raises(ValueError):
+        with pyhidra.open_program(
+            strings_exe,
+            False,
+            language="invalid",
+            compiler="windows"
+        ) as flat_api:
+            pass
+
+
+def test_bad_compiler(shared_datadir: Path):
+    strings_exe = shared_datadir / EXE_NAME
+    with pytest.raises(ValueError):
+        with pyhidra.open_program(
+            strings_exe,
+            False,
+            language="x86:LE:32:default",
+            compiler="invalid"
+        ) as flat_api:
+            pass
+
+
+def test_no_compiler(shared_datadir: Path):
+    strings_exe = shared_datadir / EXE_NAME
+    with pyhidra.open_program(strings_exe, False, language="x86:LE:32:default") as flat_api:
+        pass
+
+
+def test_no_language_with_compiler(shared_datadir: Path):
+    strings_exe = shared_datadir / EXE_NAME
+    with pyhidra.open_program(strings_exe, False, compiler="windows") as flat_api:
+        pass
 
 
 def test_no_project(capsys, shared_datadir: Path):
