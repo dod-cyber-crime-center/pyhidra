@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.4.1] - 2023-02-21
+- Fixed bug causing the loading of updated plugins to fail.
+
 ## [0.4.0] - 2023-01-26
 - Added manual plugin installation helper.
 - Analyze the program by default, if provided, when entering the REPL with pyhidra.
@@ -55,7 +58,8 @@
 ## 0.1.0 - 2021-06-14
 - Initial release
 
-[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.4.0...HEAD
+[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.4.1...HEAD
+[0.4.1]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.4.0...0.4.1
 [0.4.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.3.0...0.4.0
 [0.3.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.2.1...0.3.0
 [0.2.1]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.2.0...0.2.1

@@ -70,7 +70,7 @@ class PyhidraArgs(argparse.Namespace):
                 self.project_path,
                 self.project_name,
                 self.verbose,
-                not self.skip_analsis
+                not self.skip_analysis
             )
             with pyhidra.core._flat_api(*args) as api:
                 _interpreter(api)

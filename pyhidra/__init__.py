@@ -1,5 +1,5 @@
 
-__version__ = "0.4.0"
+__version__ = "0.4.1"
 
 # Expose API
 from .core import run_script, start, open_program

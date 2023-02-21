@@ -203,6 +203,19 @@ class PyhidraLauncher:
 
         jvm = _get_libjvm_path(self.java_home)
 
+        pyhidra_details = ExtensionDetails(
+            name="pyhidra",
+            description="Native Python Plugin",
+            author="Department of Defense Cyber Crime Center (DC3)",
+            plugin_version=__version__,
+        )
+
+        # uninstall any outdated plugins before starting the JVM to ensure they are loaded correctly
+        self._uninstall_old_plugin(pyhidra_details)
+
+        for _, details in self._plugins:
+            self._uninstall_old_plugin(details)
+
         jpype.startJVM(
             str(jvm),
             *self.vm_args,
@@ -221,12 +234,7 @@ class PyhidraLauncher:
 
         # install the Pyhidra plugin.
         from pyhidra.java import plugin
-        needs_reload = self._install_plugin(Path(plugin.__file__).parent, ExtensionDetails(
-            name="pyhidra",
-            description="Native Python Plugin",
-            author="Department of Defense Cyber Crime Center (DC3)",
-            plugin_version=__version__,
-        ))
+        needs_reload = self._install_plugin(Path(plugin.__file__).parent, pyhidra_details)
 
         if needs_reload:
             # "restart" Ghidra
@@ -237,6 +245,14 @@ class PyhidraLauncher:
         from pyhidra.java.plugin.plugin import PyPhidraPlugin
         PyPhidraPlugin.register()
 
+        # Add extra class paths
+        # Do this before installing plugins incase dependencies are needed
+        if self.class_files:
+            from java.lang import ClassLoader
+            gcl = ClassLoader.getSystemClassLoader()
+            for path in self.class_files:
+                gcl.addPath(path)
+
         # Install extra plugins.
         for source_path, details in self._plugins:
             needs_reload = self._install_plugin(source_path, details) or needs_reload
@@ -244,13 +260,6 @@ class PyhidraLauncher:
         if needs_reload:
             # "restart" Ghidra
             self.layout = GhidraLauncher.initializeGhidraEnvironment()
-
-        # Add extra class paths.
-        if self.class_files:
-            from java.lang import ClassLoader
-            gcl = ClassLoader.getSystemClassLoader()
-            for path in self.class_files:
-                gcl.addPath(path)
 
         # import properties to register the property customizer
         from . import properties as _
@@ -280,6 +289,23 @@ class PyhidraLauncher:
                 logger.exception(msg)
                 self._report_fatal_error(title, msg)
 
+    def _uninstall_old_plugin(self, details: ExtensionDetails):
+        """
+        Automatically uninstalls an outdated plugin if it exists.
+        """
+        plugin_name = details.name
+        path = self.get_install_path(plugin_name)
+        ext = path / "extension.properties"
+        manifest = path / "Module.manifest"
+
+        # Uninstall old version.
+        if manifest.exists() and ext.exists():
+            orig_details = ExtensionDetails.from_file(ext)
+            if not orig_details.plugin_version or orig_details.plugin_version != details.plugin_version:
+                self.uninstall_plugin(plugin_name)
+                logger.info(f"Uninstalled older plugin: {plugin_name} {orig_details.plugin_version}")
+
+
     def _install_plugin(self, source_path: Path, details: ExtensionDetails):
         """
         Compiles and installs a Ghidra extension.
@@ -290,13 +316,6 @@ class PyhidraLauncher:
         ext = path / "extension.properties"
         manifest = path / "Module.manifest"
         root = source_path
-
-        # Uninstall old version.
-        if manifest.exists() and ext.exists():
-            orig_details = ExtensionDetails.from_file(ext)
-            if not orig_details.plugin_version or orig_details.plugin_version < details.plugin_version:
-                self.uninstall_plugin(plugin_name)
-                logger.info(f"Uninstalled older plugin: {plugin_name} {orig_details.plugin_version}")
 
         if not manifest.exists():
             jar_path = path / "lib" / (plugin_name + ".jar")
