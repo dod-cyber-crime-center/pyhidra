@@ -46,9 +46,6 @@ def _jvm_args():
             if match:
                 properties.append(match.group(1))
 
-    # even though ignoreUnrecognized is True when starting the VM this is still needed
-    properties.insert(0, "-XX:+IgnoreUnrecognizedVMOptions")
-
     return properties
 
 
@@ -176,7 +173,7 @@ class PyhidraLauncher:
                 """).rstrip()
             )
 
-    def start(self):
+    def start(self, **jpype_kwargs):
         """
         Starts Jpype connection to Ghidra (if not already started).
         """
@@ -216,12 +213,18 @@ class PyhidraLauncher:
         for _, details in self._plugins:
             self._uninstall_old_plugin(details)
 
+        # Setup jpype Keyword Arguments
+        if 'classpath' in jpype_kwargs:
+            raise TypeError('classpath specified twice')
+        jpype_kwargs['classpath'] = self.class_path
+
+        # force convert strings (required by pyhidra)
+        jpype_kwargs['convertStrings'] = True
+
         jpype.startJVM(
             str(jvm),
             *self.vm_args,
-            ignoreUnrecognized=True,
-            convertStrings=True,
-            classpath=self.class_path
+            **jpype_kwargs
         )
 
         # Install hook into python importlib
@@ -304,7 +307,6 @@ class PyhidraLauncher:
             if not orig_details.plugin_version or orig_details.plugin_version != details.plugin_version:
                 self.uninstall_plugin(plugin_name)
                 logger.info(f"Uninstalled older plugin: {plugin_name} {orig_details.plugin_version}")
-
 
     def _install_plugin(self, source_path: Path, details: ExtensionDetails):
         """
