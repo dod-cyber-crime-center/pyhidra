@@ -7,45 +7,39 @@ import jpype
 import pyhidra
 import pytest
 
+from tests.processify import processify
+
 EXE_NAME = "strings.exe"
 
-# def test_invalid_vm_arg_fail():
 
-#     # test must be run before JVM is started
-#     assert jpype.isJVMStarted() == False
+# decorator to run function in a separate process
+@processify
+def test_invalid_vm_arg_fail():
 
-#     launcher = pyhidra.launcher.HeadlessPyhidraLauncher()
+    assert not jpype.isJVMStarted()
+    launcher = pyhidra.launcher.HeadlessPyhidraLauncher()
+    launcher.add_vmargs('-XX:SomeBogusJvmArg')
 
-#     launcher.add_vmargs('-XX:SomeBogusJvmArg')
-
-#     with pytest.raises(RuntimeError) as ex:
-#         launcher.start()
-
-# assert "Unable to start JVM" in str(ex.value)
+    with pytest.raises(RuntimeError) as ex:
+        launcher.start()
+    assert "Unable to start JVM" in str(ex.value)
 
 
 def test_invalid_jpype_keyword_arg():
 
-    # test must be run before JVM is started
-    assert jpype.isJVMStarted() == False
-
+    assert not jpype.isJVMStarted()
     launcher = pyhidra.launcher.HeadlessPyhidraLauncher()
 
     with pytest.raises(TypeError) as ex:
         launcher.start(someBogusKeywordArg=True)
-
     assert "startJVM() got an unexpected keyword argument 'someBogusKeywordArg'" in str(ex.value)
 
 
 def test_invalid_vm_arg_succeed():
 
-    # test must be run before JVM is started
     assert jpype.isJVMStarted() == False
-
     launcher = pyhidra.launcher.HeadlessPyhidraLauncher()
-
     launcher.add_vmargs('-XX:SomeBogusJvmArg')
-
     launcher.start(ignoreUnrecognized=True)
 
 
