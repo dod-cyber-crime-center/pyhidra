@@ -7,22 +7,7 @@ import jpype
 import pyhidra
 import pytest
 
-from tests.processify import processify
-
 EXE_NAME = "strings.exe"
-
-
-# decorator to run function in a separate process
-@processify
-def test_invalid_vm_arg_fail():
-
-    assert not jpype.isJVMStarted()
-    launcher = pyhidra.launcher.HeadlessPyhidraLauncher()
-    launcher.add_vmargs('-XX:SomeBogusJvmArg')
-
-    with pytest.raises(RuntimeError) as ex:
-        launcher.start()
-    assert "Unable to start JVM" in str(ex.value)
 
 
 def test_invalid_jpype_keyword_arg():

@@ -213,10 +213,8 @@ class PyhidraLauncher:
         for _, details in self._plugins:
             self._uninstall_old_plugin(details)
 
-        # Setup jpype Keyword Arguments
-        if 'classpath' in jpype_kwargs:
-            raise TypeError('classpath specified twice')
-        jpype_kwargs['classpath'] = self.class_path
+        # Merge classpath
+        jpype_kwargs['classpath'] = self.class_path + jpype_kwargs.get('classpath', [])
 
         # force convert strings (required by pyhidra)
         jpype_kwargs['convertStrings'] = True
