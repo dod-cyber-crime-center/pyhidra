@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- Added support for `jpype.startJVM` keyword arguments
+
 ## [0.4.1] - 2023-02-21
 - Fixed bug causing the loading of updated plugins to fail.
 

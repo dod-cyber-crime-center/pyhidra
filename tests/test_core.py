@@ -10,6 +10,24 @@ import pytest
 EXE_NAME = "strings.exe"
 
 
+def test_invalid_jpype_keyword_arg():
+
+    assert not jpype.isJVMStarted()
+    launcher = pyhidra.launcher.HeadlessPyhidraLauncher()
+
+    with pytest.raises(TypeError) as ex:
+        launcher.start(someBogusKeywordArg=True)
+    assert "startJVM() got an unexpected keyword argument 'someBogusKeywordArg'" in str(ex.value)
+
+
+def test_invalid_vm_arg_succeed():
+
+    assert jpype.isJVMStarted() == False
+    launcher = pyhidra.launcher.HeadlessPyhidraLauncher()
+    launcher.add_vmargs('-XX:SomeBogusJvmArg')
+    launcher.start(ignoreUnrecognized=True)
+
+
 def test_run_script(capsys, shared_datadir: Path):
     strings_exe = shared_datadir / EXE_NAME
     script_path = shared_datadir / "example_script.py"
@@ -116,7 +134,7 @@ def test_import_ghidra_base_java_packages():
     launcher = pyhidra.start()
 
     # Test to ensure _PyhidraImportLoader is last loader
-    assert isinstance(sys.meta_path[-1],pyhidra.launcher._PyhidraImportLoader)
+    assert isinstance(sys.meta_path[-1], pyhidra.launcher._PyhidraImportLoader)
 
     packages = get_runtime_top_level_java_packages(launcher)
 
