@@ -1,7 +1,7 @@
 # Changelog
 
-## [Unreleased]
-- Added support for `jpype.startJVM` keyword arguments
+## [0.5.0] - 2023-04-20
+- Added support for `jpype.startJVM` keyword arguments. (@clearbluejar)
 
 ## [0.4.1] - 2023-02-21
 - Fixed bug causing the loading of updated plugins to fail.
@@ -61,7 +61,8 @@
 ## 0.1.0 - 2021-06-14
 - Initial release
 
-[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.4.1...HEAD
+[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.0...HEAD
+[0.5.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.4.1...0.5.0
 [0.4.1]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.4.0...0.4.1
 [0.4.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.3.0...0.4.0
 [0.3.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.2.1...0.3.0
