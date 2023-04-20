@@ -11,18 +11,17 @@ EXE_NAME = "strings.exe"
 
 
 def test_invalid_jpype_keyword_arg():
-
     assert not jpype.isJVMStarted()
-    launcher = pyhidra.launcher.HeadlessPyhidraLauncher()
 
+    launcher = pyhidra.launcher.HeadlessPyhidraLauncher()
     with pytest.raises(TypeError) as ex:
         launcher.start(someBogusKeywordArg=True)
     assert "startJVM() got an unexpected keyword argument 'someBogusKeywordArg'" in str(ex.value)
 
 
 def test_invalid_vm_arg_succeed():
+    assert not jpype.isJVMStarted()
 
-    assert jpype.isJVMStarted() == False
     launcher = pyhidra.launcher.HeadlessPyhidraLauncher()
     launcher.add_vmargs('-XX:SomeBogusJvmArg')
     launcher.start(ignoreUnrecognized=True)

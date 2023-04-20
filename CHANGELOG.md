@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [Unreleased]
 - Added support for `jpype.startJVM` keyword arguments
 
 ## [0.4.1] - 2023-02-21
