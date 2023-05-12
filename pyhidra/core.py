@@ -124,7 +124,10 @@ def _analyze_program(flat_api, program):
         GhidraScriptUtil.acquireBundleHostReference()
         try:
             flat_api.analyzeAll(program)
-            GhidraProgramUtilities.setAnalyzedFlag(program, True)
+            if hasattr(GhidraProgramUtilities, "markProgramAnalyzed"):
+                GhidraProgramUtilities.markProgramAnalyzed(program)
+            else:
+                GhidraProgramUtilities.setAnalyzedFlag(program, True)
         finally:
             GhidraScriptUtil.releaseBundleHostReference()
 
