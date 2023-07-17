@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.5.2] - 2023-07-17
 - Added more helpful error message on failed program import.
 
 ## [0.5.1] - 2023-05-12
@@ -67,7 +67,8 @@
 ## 0.1.0 - 2021-06-14
 - Initial release
 
-[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.1...HEAD
+[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.2...HEAD
+[0.5.2]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.1...0.5.2
 [0.5.1]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.0...0.5.1
 [0.5.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.4.1...0.5.0
 [0.4.1]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.4.0...0.4.1
