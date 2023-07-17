@@ -38,7 +38,7 @@ def _get_language(id: str) -> "Language":
     raise ValueError("Invalid Language ID: "+id)
 
 
-def _get_compiler_spec(lang: "Language", id: str) -> "CompilerSpec":
+def _get_compiler_spec(lang: "Language", id: str = None) -> "CompilerSpec":
     if id is None:
         return lang.getDefaultCompilerSpec()
     from ghidra.program.model.lang import CompilerSpecID, CompilerSpecNotFoundException
@@ -84,10 +84,19 @@ def _setup_project(
     if binary_path is not None and program is None:
         if language is None:
             program = project.importProgram(binary_path)
+            if program is None:
+                raise RuntimeError(f"Ghidra failed to import '{binary_path}'. Try providing a language manually.")
         else:
             lang = _get_language(language)
             comp = _get_compiler_spec(lang, compiler)
             program = project.importProgram(binary_path, lang, comp)
+            if program is None:
+                message = f"Ghidra failed to import '{binary_path}'. "
+                if compiler:
+                    message += f"The provided language/compiler pair ({language} / {compiler}) may be invalid."
+                else:
+                    message += f"The provided language ({language}) may be invalid."
+                raise ValueError(message)
         project.saveAs(program, "/", program.getName(), True)
 
     return project, program

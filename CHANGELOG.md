@@ -1,5 +1,8 @@
 # Changelog
 
+## [Unreleased]
+- Added more helpful error message on failed program import.
+
 ## [0.5.1] - 2023-05-12
 - Added support for Ghidra 10.3.
 
