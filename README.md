@@ -34,6 +34,17 @@ If pyhidra is planned to be used in a multiprocessing deployed server, the follo
 ```console
 python -m pyhidra.install_plugins
 ```
+
+
+### Manual Plugin Uninstallation
+
+If a plugin is misbehaving, the plugin can be manually uninstalled to allow recompilation on the next startup of pyhidra's launcher.
+
+```console
+python -m pyhidra.uninstall_plugin pyhidra
+```
+
+
 ## Usage
 
 

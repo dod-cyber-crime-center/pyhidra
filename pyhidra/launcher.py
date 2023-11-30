@@ -297,10 +297,9 @@ class PyhidraLauncher:
         plugin_name = details.name
         path = self.get_install_path(plugin_name)
         ext = path / "extension.properties"
-        manifest = path / "Module.manifest"
 
         # Uninstall old version.
-        if manifest.exists() and ext.exists():
+        if path.exists() and ext.exists():
             orig_details = ExtensionDetails.from_file(ext)
             if not orig_details.plugin_version or orig_details.plugin_version != details.plugin_version:
                 self.uninstall_plugin(plugin_name)
@@ -308,8 +307,7 @@ class PyhidraLauncher:
 
     def _install_plugin(self, source_path: Path, details: ExtensionDetails):
         """
-        Compiles and installs a Ghidra extension.
-        Automatically updates old plugin installation if it exists.
+        Compiles and installs a Ghidra extension if not already installed.
         """
         plugin_name = details.name
         path = self.get_install_path(plugin_name)
@@ -317,7 +315,9 @@ class PyhidraLauncher:
         manifest = path / "Module.manifest"
         root = source_path
 
-        if not manifest.exists():
+        if not path.exists():
+            path.mkdir(parents=True)
+
             jar_path = path / "lib" / (plugin_name + ".jar")
             java_compile(root.parent, jar_path)
 
