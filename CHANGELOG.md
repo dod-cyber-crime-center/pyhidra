@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.5.4] - 2023-12-12
+- Fix bug when running a script using the CLI. (#32)
+
 ## [0.5.3] - 2023-11-30
 - Test support for Ghidra 10.4
 - Improved handling of plugin installation
@@ -72,7 +75,8 @@
 ## 0.1.0 - 2021-06-14
 - Initial release
 
-[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.3...HEAD
+[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.4...HEAD
+[0.5.34]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.3...0.5.4
 [0.5.3]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.2...0.5.3
 [0.5.2]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.1...0.5.2
 [0.5.1]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.0...0.5.1
