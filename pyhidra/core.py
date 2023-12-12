@@ -6,13 +6,14 @@ from pyhidra.converters import *  # pylint: disable=wildcard-import, unused-wild
 
 
 if TYPE_CHECKING:
+    from pyhidra.launcher import PyhidraLauncher
     from ghidra.base.project import GhidraProject
     from ghidra.program.flatapi import FlatProgramAPI
     from ghidra.program.model.lang import CompilerSpec, Language, LanguageService
     from ghidra.program.model.listing import Program
 
 
-def start(verbose=False):
+def start(verbose=False) -> "PyhidraLauncher":
     """
     Starts the JVM and loads the Ghidra libraries.
     Full Ghidra initialization is deferred.
@@ -24,6 +25,14 @@ def start(verbose=False):
     launcher = HeadlessPyhidraLauncher(verbose=verbose)
     launcher.start()
     return launcher
+
+
+def started() -> bool:
+    """
+    Whether the PyhidraLauncher has already started.
+    """
+    from pyhidra.launcher import PyhidraLauncher
+    return PyhidraLauncher.has_launched()
 
 
 def _get_language(id: str) -> "Language":
