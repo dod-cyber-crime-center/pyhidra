@@ -59,7 +59,7 @@ class PyhidraArgs(argparse.Namespace):
                     project_name=self.project_name,
                     script_args=self._script_args,
                     verbose=self.verbose,
-                    analyze=not self.skip_analsis
+                    analyze=not self.skip_analysis
                 )
             except KeyboardInterrupt:
                 # gracefully finish when cancelled

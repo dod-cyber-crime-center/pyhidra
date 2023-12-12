@@ -127,6 +127,9 @@ class PyGhidraScript(dict):
             return attr
         raise KeyError(k)
 
+    def __getattr__(self, item):
+        return getattr(self._script, item)
+
     def __setitem__(self, k, v):
         attr = inspect.getattr_static(self._script, k, _NO_ATTRIBUTE)
         if attr is not _NO_ATTRIBUTE and isinstance(attr, property):
