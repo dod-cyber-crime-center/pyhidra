@@ -126,6 +126,15 @@ class PyhidraLauncher:
     """
 
     def __init__(self, verbose):
+        if GHIDRA_INSTALL_DIR is None:
+            self._report_fatal_error(
+                "GHIDRA_INSTALL_DIR is not set",
+                textwrap.dedent("""\
+                    Please set the GHIDRA_INSTALL_DIR environment variable
+                    to the directory where Ghidra is installed
+                """).rstrip()
+            )
+
         self._plugins = []
         self.verbose = verbose
         self.java_home = None
@@ -179,15 +188,6 @@ class PyhidraLauncher:
         """
         if jpype.isJVMStarted():
             return
-
-        if GHIDRA_INSTALL_DIR is None:
-            self._report_fatal_error(
-                "GHIDRA_INSTALL_DIR is not set",
-                textwrap.dedent("""\
-                    Please set the GHIDRA_INSTALL_DIR environment variable
-                    to the directory where Ghidra is installed
-                """).rstrip()
-            )
 
         self.check_ghidra_version()
 
