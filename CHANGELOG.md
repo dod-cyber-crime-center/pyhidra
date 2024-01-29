@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.0] - 2024-01-30
+- Fixed #21, #31 and #34.
+- Phidra launcher will no longer terminate Python if a fatal exception occurs when launching, except in GUI mode.
+- Adds `this` variable to Python scripts to mirror Ghidra's builtin Python script behavior.
+- Plugins are now compiled targeting JDK 17.
+- Fixed deprecation warning when compiling plugin.
+- Adds compatibility for future Ghidra 11.1 releases.
+- Dropped support for versions of Ghidra older than 10.3.
+- Removed use of deprecated `ProgramPlugin` constructor.
+- Dropped support for Python 3.8.
+
 ## [0.5.4] - 2023-12-12
 - Fix bug when running a script using the CLI. (#32)
 
@@ -75,8 +86,9 @@
 ## 0.1.0 - 2021-06-14
 - Initial release
 
-[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.4...HEAD
-[0.5.34]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.3...0.5.4
+[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.0.0...HEAD
+[1.0.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.4...1.0.0
+[0.5.4]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.3...0.5.4
 [0.5.3]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.2...0.5.3
 [0.5.2]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.1...0.5.2
 [0.5.1]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.0...0.5.1

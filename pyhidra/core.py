@@ -1,6 +1,6 @@
 import contextlib
 from pathlib import Path
-from typing import Union, TYPE_CHECKING, Tuple, ContextManager, List
+from typing import Union, TYPE_CHECKING, Tuple, ContextManager, List, Optional
 
 from pyhidra.converters import *  # pylint: disable=wildcard-import, unused-wildcard-import
 
@@ -77,7 +77,7 @@ def _setup_project(
         project_location = binary_path.parent
     if not project_name:
         project_name = f"{binary_path.name}_ghidra"
-    project_location = project_location / project_name
+    project_location /= project_name
     project_location.mkdir(exist_ok=True, parents=True)
 
     # Open/Create project
@@ -208,13 +208,15 @@ def open_program(
 
 @contextlib.contextmanager
 def _flat_api(
-        binary_path: Union[str, Path],
+        binary_path: Union[str, Path] = None,
         project_location: Union[str, Path] = None,
         project_name: str = None,
         verbose=False,
         analyze=True,
         language: str = None,
-        compiler: str = None
+        compiler: str = None,
+        *,
+        install_dir: Path = None
 ):
     """
     Runs a given script on a given binary path.
@@ -232,12 +234,15 @@ def _flat_api(
         (Defaults to Ghidra's detected LanguageID)
     :param compiler: The CompilerSpecID to use for the program. Requires a provided language.
         (Defaults to the Language's default compiler)
+    :param install_dir: The path to the Ghidra installation directory. This parameter is only
+        used if Ghidra has not been started yet.
+        (Defaults to the GHIDRA_INSTALL_DIR environment variable)
     :raises ValueError: If the provided language or compiler is invalid.
     """
     from pyhidra.launcher import PyhidraLauncher, HeadlessPyhidraLauncher
 
     if not PyhidraLauncher.has_launched():
-        HeadlessPyhidraLauncher(verbose=verbose).start()
+        HeadlessPyhidraLauncher(verbose=verbose, install_dir=install_dir).start()
 
     project, program = None, None
     if binary_path or project_location:
@@ -268,7 +273,7 @@ def _flat_api(
 
 # pylint: disable=too-many-arguments
 def run_script(
-    binary_path: Union[str, Path],
+    binary_path: Optional[Union[str, Path]],
     script_path: Union[str, Path],
     project_location: Union[str, Path] = None,
     project_name: str = None,
@@ -276,7 +281,9 @@ def run_script(
     verbose=False,
     analyze=True,
     lang: str = None,
-    compiler: str = None
+    compiler: str = None,
+    *,
+    install_dir: Path = None
 ):
     """
     Runs a given script on a given binary path.
@@ -294,9 +301,12 @@ def run_script(
         (Defaults to Ghidra's detected LanguageID)
     :param compiler: The CompilerSpecID to use for the program. Requires a provided language.
         (Defaults to the Language's default compiler)
+    :param install_dir: The path to the Ghidra installation directory. This parameter is only
+        used if Ghidra has not been started yet.
+        (Defaults to the GHIDRA_INSTALL_DIR environment variable)
     :raises ValueError: If the provided language or compiler is invalid.
     """
     script_path = str(script_path)
     args = binary_path, project_location, project_name, verbose, analyze, lang, compiler
-    with _flat_api(*args) as script:
+    with _flat_api(*args, install_dir=install_dir) as script:
         script.run(script_path, script_args)

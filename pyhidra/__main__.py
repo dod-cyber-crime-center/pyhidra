@@ -1,6 +1,5 @@
 import argparse
 import code
-import logging
 
 import sys
 from pathlib import Path
@@ -40,7 +39,9 @@ class PyhidraArgs(argparse.Namespace):
         self.script_path: Path = None
         self.project_name = None
         self.project_path: Path = None
+        self.install_dir: Path = None
         self._script_args = []
+        self.gui = False
 
     def func(self):
         """
@@ -48,6 +49,10 @@ class PyhidraArgs(argparse.Namespace):
         """
         if not self.valid:
             self.parser.print_usage()
+            return
+
+        if self.gui:
+            pyhidra.gui.gui(self.install_dir)
             return
 
         if self.script_path is not None:
@@ -59,7 +64,8 @@ class PyhidraArgs(argparse.Namespace):
                     project_name=self.project_name,
                     script_args=self._script_args,
                     verbose=self.verbose,
-                    analyze=not self.skip_analysis
+                    analyze=not self.skip_analysis,
+                    install_dir=self.install_dir
                 )
             except KeyboardInterrupt:
                 # gracefully finish when cancelled
@@ -72,10 +78,11 @@ class PyhidraArgs(argparse.Namespace):
                 self.verbose,
                 not self.skip_analysis
             )
-            with pyhidra.core._flat_api(*args) as api:
+            with pyhidra.core._flat_api(*args, install_dir=self.install_dir) as api:
                 _interpreter(api)
         else:
-            pyhidra.HeadlessPyhidraLauncher(verbose=self.verbose).start()
+            pyhidra.HeadlessPyhidraLauncher(
+                verbose=self.verbose, install_dir=self.install_dir).start()
             _interpreter(globals())
 
     @property
@@ -143,7 +150,7 @@ def _get_parser():
     is_win32 = sys.platform == "win32"
     extra_flag = "[-s] " if is_win32 else ""
     usage = f"pyhidra [-h] [-v] [-g] {extra_flag}[--no-analysis] [--project-name name] [--project-path path] " \
-        "[binary_path] [script_path] ..."
+            "[binary_path] [script_path] ..."
     parser = argparse.ArgumentParser(prog="pyhidra", usage=usage)
     parser.add_argument(
         "-v",
@@ -155,9 +162,8 @@ def _get_parser():
     parser.add_argument(
         "-g",
         "--gui",
-        action="store_const",
-        dest="func",
-        const=pyhidra.gui.gui,
+        action="store_true",
+        dest="gui",
         help="Start Ghidra GUI"
     )
     if is_win32:
@@ -169,6 +175,15 @@ def _get_parser():
             const=_create_shortcut,
             help="Creates a shortcut that can be pinned to the taskbar (Windows only)"
         )
+    parser.add_argument(
+        "--install-dir",
+        type=Path,
+        default=None,
+        dest="install_dir",
+        metavar="",
+        help="Path to Ghidra installation. "\
+             "(defaults to the GHIDRA_INSTALL_DIR environment variable)"
+    )
     parser.add_argument(
         "--skip-analysis",
         dest="skip_analysis",
@@ -183,8 +198,10 @@ def _get_parser():
     parser.add_argument(
         "script_path",
         action=PathAction,
-        help="Headless script path. The script must have a .py extension. " \
+        help=(
+            "Headless script path. The script must have a .py extension. "
             "If a script is not provided, pyhidra will drop into a repl."
+        )
     )
     parser.add_argument(
         "script_args",
@@ -197,7 +214,7 @@ def _get_parser():
         dest="project_name",
         metavar="name",
         help="Project name to use. "
-        "(defaults to binary filename with \"_ghidra\" suffix if provided else None)"
+             "(defaults to binary filename with \"_ghidra\" suffix if provided else None)"
     )
     parser.add_argument(
         "--project-path",
@@ -205,7 +222,7 @@ def _get_parser():
         dest="project_path",
         metavar="path",
         help="Location to store project. "
-        "(defaults to same directory as binary file if provided else None)"
+             "(defaults to same directory as binary file if provided else None)"
     )
     return parser
 

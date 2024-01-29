@@ -203,14 +203,6 @@ class PyPhidraPlugin:
                 action.dispose()
         self.console.dispose()
 
-    def _gen_completions(self, cmd: str):
-        completer = rlcompleter.Completer(namespace=self)
-        for state in itertools.count():
-            completion = completer.complete(cmd, state)
-            if completion is None:
-                break
-            yield CodeCompletion(cmd, completion, None)
-
     @property
     def program(self):
         return self._plugin.getCurrentProgram()
@@ -236,7 +228,7 @@ class PyPhidraPlugin:
         except Exception as e:
             if not self._logged_completions_change:
                 self._logged_completions_change = True
-                logger.exception(e)
+                logger.exception(e, exc_info=e)
             return Collections.emptyList()
 
     @JOverride

@@ -1,15 +1,15 @@
 
-__version__ = "0.5.4"
+__version__ = "1.0.0"
 
 # Expose API
 from .core import run_script, start, started, open_program
+from .launcher import DeferredPyhidraLauncher, GuiPyhidraLauncher, HeadlessPyhidraLauncher
 from .script import get_current_interpreter
-from .launcher import DeferredPyhidraLauncher, HeadlessPyhidraLauncher, GuiPyhidraLauncher
-from .version import ExtensionDetails
+from .version import ApplicationInfo, ExtensionDetails
 
 
 __all__ = [
-    "run_script", "start", "started", "open_program", "get_current_interpreter",
-    "DeferredPyhidraLauncher", "HeadlessPyhidraLauncher", "GuiPyhidraLauncher",
-    "ExtensionDetails",
+    "get_current_interpreter", "open_program", "run_script", "start", "started",
+    "ApplicationInfo", "DeferredPyhidraLauncher", "ExtensionDetails",
+    "GuiPyhidraLauncher", "HeadlessPyhidraLauncher"
 ]

@@ -121,6 +121,9 @@ class PyGhidraScript(dict):
 
         super().__setitem__("__this__", self._script)
 
+        # this is injected since Ghidra commit e66e72577ded1aeae53bcc3f361dfce1ecf6e24a
+        super().__setitem__("this", self._script)
+
     def __missing__(self, k):
         attr = getattr(self._script, k, _NO_ATTRIBUTE)
         if attr is not _NO_ATTRIBUTE:

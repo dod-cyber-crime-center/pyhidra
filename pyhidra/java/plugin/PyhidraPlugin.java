@@ -16,7 +16,7 @@ import ghidra.program.util.ProgramLocation;
 import ghidra.program.util.ProgramSelection;
 
 @PluginInfo(
-	status = PluginStatus.UNSTABLE,
+	status = PluginStatus.RELEASED,
 	packageName = MiscellaneousPluginPackage.NAME,
 	category = PluginCategoryNames.INTERPRETERS,
 	shortDescription = "pyhidra plugin",
@@ -34,7 +34,7 @@ public final class PyhidraPlugin extends ProgramPlugin {
 	public final InterpreterGhidraScript script = new InterpreterGhidraScript();
 
 	public PyhidraPlugin(PluginTool tool) {
-		super(tool, true, true, true);
+		super(tool);
 		GhidraState state = new GhidraState(tool, tool.getProject(), null, null, null, null);
 		// use the copy constructor so this state doesn't fire plugin events
 		script.set(new GhidraState(state), null, null);
