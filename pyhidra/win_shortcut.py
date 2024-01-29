@@ -2,8 +2,7 @@ import struct
 import sys
 import sysconfig
 from pathlib import Path
-from pyhidra.constants import GHIDRA_INSTALL_DIR
-from pyhidra.version import get_current_application
+from pyhidra import DeferredPyhidraLauncher
 
 
 # creating a shortcut with the winapi to have a set app id is trivial right?
@@ -28,6 +27,8 @@ def create_shortcut(link: Path):
             ctypes.oledll.ole32.IIDFromString(key, ctypes.byref(self))
             self[-1] = pid
 
+    launcher = DeferredPyhidraLauncher()
+
     _PropertyVariant = struct.Struct(f"B7xP{ctypes.sizeof(ctypes.c_void_p())}x")
     _AppUserModelId = _PROPERTYKEY("{9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3}", 5)
     _CLSID_ShellLink = _GUID("{00021401-0000-0000-C000-000000000046}")
@@ -39,7 +40,7 @@ def create_shortcut(link: Path):
     _COINIT_APARTMENTTHREADED = 2
     _COINIT_DISABLE_OLE1DDE = 4
     _VT_LPWSTR = 31
-    _APP_ID = get_current_application().name
+    _APP_ID = launcher.app_info.name
 
     WINFUNCTYPE = ctypes.WINFUNCTYPE
     _CoCreateInstance = ctypes.oledll.ole32.CoCreateInstance
@@ -53,7 +54,7 @@ def create_shortcut(link: Path):
 
     link = str(link)
     target = Path(sysconfig.get_path("scripts")) / "pyhidraw.exe"
-    icon = str(GHIDRA_INSTALL_DIR / "support" / "ghidra.ico")
+    icon = str(launcher.install_dir / "support" / "ghidra.ico")
     p_link = ctypes.c_void_p()
     p_file = ctypes.c_void_p()
     p_store = ctypes.c_void_p()

@@ -35,7 +35,7 @@ final class CancelAction extends ToggleDockingAction {
 	@Override
 	public void actionPerformed(ActionContext context) {
 		if (isSelected()) {
-			monitor.clearCanceled();
+			monitor.clearCancelled();
 		} else {
 			monitor.cancel();
 		}

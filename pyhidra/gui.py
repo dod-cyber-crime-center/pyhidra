@@ -21,11 +21,12 @@ def _gui():
         # original process can exit
         return
 
-    # close stdin, stdout and stderr so the jvm can't use the terminal
-    # these must be closed using os.close and not sys.stdout.close()
-    os.close(sys.stdin.fileno())
-    os.close(sys.stdout.fileno())
-    os.close(sys.stderr.fileno())
+    fd = os.open(os.devnull, os.O_RDWR)
+    # redirect stdin, stdout and stderr to /dev/null so the jvm can't use the terminal
+    # this also prevents errors from attempting to write to a closed sys.stdout #21
+    os.dup2(fd, sys.stdin.fileno(), inheritable=False)
+    os.dup2(fd, sys.stdout.fileno(), inheritable=False)
+    os.dup2(fd, sys.stderr.fileno(), inheritable=False)
 
     # run the application
     gui()
@@ -35,7 +36,7 @@ def gui():
     """
     Starts the Ghidra GUI
     """
-    if not "GHIDRA_INSTALL_DIR" in os.environ:
+    if "GHIDRA_INSTALL_DIR" not in os.environ:
         import tkinter.messagebox
         msg = "GHIDRA_INSTALL_DIR not set.\nPlease see the README for setup instructions"
         tkinter.messagebox.showerror("Improper Setup", msg)

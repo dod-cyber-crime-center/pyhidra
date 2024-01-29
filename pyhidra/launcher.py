@@ -2,51 +2,26 @@ import contextlib
 import importlib.metadata
 import inspect
 import logging
+import os
 import platform
 import re
 import shutil
 import subprocess
 import sys
-import textwrap
 import threading
 from pathlib import Path
-from typing import NoReturn
+from typing import List, NoReturn, Tuple, Union
 
 import jpype
 from jpype import imports, _jpype
 from importlib.machinery import ModuleSpec
 
 from . import __version__
-from .constants import LAUNCH_PROPERTIES, LAUNCHSUPPORT, GHIDRA_INSTALL_DIR, UTILITY_JAR
 from .javac import java_compile
 from .script import PyGhidraScript
-from .version import get_current_application, get_ghidra_version, MINIMUM_GHIDRA_VERSION, \
-    ExtensionDetails
-
+from .version import ApplicationInfo, ExtensionDetails, MINIMUM_GHIDRA_VERSION
 
 logger = logging.getLogger(__name__)
-
-
-_GET_JAVA_HOME = f'java -cp "{LAUNCHSUPPORT}" LaunchSupport "{GHIDRA_INSTALL_DIR}" -jdk_home -save'
-
-
-def _jvm_args():
-    suffix = "_" + platform.system().upper()
-    option_pattern: re.Pattern = re.compile(fr"VMARGS(?:{suffix})?=(.+)")
-    properties = []
-
-    if GHIDRA_INSTALL_DIR is None:
-        # reported in the launcher so it is displayed properly when using the gui_script
-        return None
-
-    with open(LAUNCH_PROPERTIES, "r", encoding='utf-8') as fd:
-        # this file is small so just read it at once
-        for line in fd.readlines():
-            match = option_pattern.match(line)
-            if match:
-                properties.append(match.group(1))
-
-    return properties
 
 
 @contextlib.contextmanager
@@ -70,12 +45,6 @@ def _silence_java_output(stdout=True, stderr=True):
         with contextlib.suppress(jpype.JException):
             System.setOut(out)
             System.setErr(err)
-
-
-def _get_libjvm_path(java_home: Path) -> Path:
-    for p in java_home.glob("*/server/*jvm.*"):
-        if p.suffix != ".debuginfo":
-            return p
 
 
 def _load_entry_points(group: str, *args):
@@ -125,24 +94,102 @@ class PyhidraLauncher:
     Base pyhidra launcher
     """
 
-    def __init__(self, verbose):
-        if GHIDRA_INSTALL_DIR is None:
-            self._report_fatal_error(
-                "GHIDRA_INSTALL_DIR is not set",
-                textwrap.dedent("""\
-                    Please set the GHIDRA_INSTALL_DIR environment variable
-                    to the directory where Ghidra is installed
-                """).rstrip()
-            )
+    def __init__(self, verbose=False, *, install_dir: Path = None):
+        """
+        Initializes a new `PyhidraLauncher`.
 
-        self._plugins = []
+        :param verbose: True to enable verbose output when starting Ghidra.
+        :param install_dir: Ghidra installation directory.
+            (Defaults to the GHIDRA_INSTALL_DIR environment variable)
+        :raises ValueError: If the Ghidra installation directory is invalid.
+        """
+        self._layout = None
+        self._java_home = None
+
+        install_dir = install_dir or os.getenv("GHIDRA_INSTALL_DIR")
+        self._install_dir = self._validate_install_dir(install_dir)
+        self._plugins: List[Tuple[Path, ExtensionDetails]] = []
         self.verbose = verbose
-        self.java_home = None
-        self.class_path = [str(UTILITY_JAR)]
+
+        ghidra_dir = self._install_dir / "Ghidra"
+        self.class_path = [str(ghidra_dir / "Framework" / "Utility" / "lib" / "Utility.jar")]
         self.class_files = []
-        self.vm_args = _jvm_args()
-        self.layout = None
+        self.vm_args = self._jvm_args(self._install_dir)
         self.args = []
+        self.app_info = ApplicationInfo.from_file(ghidra_dir / "application.properties")
+
+    @classmethod
+    def _jvm_args(cls, install_dir: Path) -> List[str]:
+        suffix = "_" + platform.system().upper()
+        option_pattern: re.Pattern = re.compile(fr"VMARGS(?:{suffix})?=(.+)")
+        properties = []
+
+        launch_properties = install_dir / "support" / "launch.properties"
+
+        with open(launch_properties, "r", encoding='utf-8') as fd:
+            # this file is small so just read it at once
+            for line in fd.readlines():
+                match = option_pattern.match(line)
+                if match:
+                    arg = match.group(1)
+                    name, sep, value = arg.partition('=')
+                    # unquote any values because quotes are automatically added during JVM startup
+                    if value.startswith('"') and value.endswith('"'):
+                        value = value.removeprefix('"').removesuffix('"')
+                    properties.append(name + sep + value)
+        return properties
+
+    @property
+    def extension_path(self) -> Path:
+        if not self._layout:
+            raise RuntimeError("extension_path cannot be obtained until launcher starts.")
+        return Path(self._layout.getUserSettingsDir().getPath()) / "Extensions"
+
+    @property
+    def java_home(self) -> Path:
+        if not self._java_home:
+            launch_support = self.install_dir / "support" / "LaunchSupport.jar"
+            if not launch_support.exists():
+                raise ValueError(f"{launch_support} does not exist")
+            cmd = f'java -cp "{launch_support}" LaunchSupport "{self.install_dir}" -jdk_home -save'
+            home = subprocess.check_output(cmd, encoding="utf-8", shell=True)
+            self._java_home = Path(home.rstrip())
+        return self._java_home
+
+    @java_home.setter
+    def java_home(self, path: Path):
+        self._java_home = Path(path)
+
+    @property
+    def install_dir(self) -> Path:
+        return self._install_dir
+
+    @classmethod
+    def _validate_install_dir(cls, install_dir: Union[Path, str]) -> Path:
+        """
+        Validates and sets the Ghidra installation directory.
+        """
+        if not install_dir:
+            msg = (
+                "Please set the GHIDRA_INSTALL_DIR environment variable "
+                "or `install_dir` during the Launcher construction to the "
+                "directory where Ghidra is installed."
+            )
+            cls._report_fatal_error("GHIDRA_INSTALL_DIR is not set", msg, ValueError(msg))
+
+        # both the directory and the application.properties file must exist
+        install_dir = Path(install_dir)
+        if not install_dir.exists():
+            msg = f"{install_dir} does not exist"
+            cls._report_fatal_error("Invalid Ghidra Installation Directory", msg, ValueError(msg))
+
+        path = install_dir / "Ghidra" / "application.properties"
+        if not path.exists():
+            msg = "The Ghidra installation does not contain the required " + \
+                  "application.properties file"
+            cls._report_fatal_error("Corrupt Ghidra Installation", msg, ValueError(msg))
+
+        return install_dir
 
     def add_classpaths(self, *args):
         """
@@ -164,23 +211,19 @@ class PyhidraLauncher:
         self.class_files += args
 
     @classmethod
-    def _report_fatal_error(cls, title: str, msg: str) -> NoReturn:
-        sys.exit(f"{title}: {msg}")
+    def _report_fatal_error(cls, title: str, msg: str, cause: Exception) -> NoReturn:
+        logger.error("%s: %s", title, msg)
+        raise cause
 
-    @classmethod
-    def check_ghidra_version(cls):
+    def check_ghidra_version(self):
         """
         Checks if the currently installed Ghidra version is supported.
         The launcher will report the problem and terminate if it is not supported.
         """
-        if get_ghidra_version() < MINIMUM_GHIDRA_VERSION:
-            cls._report_fatal_error(
-                "Unsupported Version",
-                textwrap.dedent(f"""\
-                    Ghidra version {get_ghidra_version()} is not supported
-                    The minimum required version is {MINIMUM_GHIDRA_VERSION}
-                """).rstrip()
-            )
+        if self.app_info.version < MINIMUM_GHIDRA_VERSION:
+            msg = f"Ghidra version {self.app_info.version} is not supported" + os.linesep + \
+                  f"The minimum required version is {MINIMUM_GHIDRA_VERSION}"
+            self._report_fatal_error("Unsupported Version", msg, ValueError(msg))
 
     def start(self, **jpype_kwargs):
         """
@@ -191,89 +234,140 @@ class PyhidraLauncher:
 
         self.check_ghidra_version()
 
-        # Before starting up, give launcher to installed entry points so they can do their thing.
-        _load_entry_points("pyhidra.setup", self)
+        try:
+            # Before starting up, give launcher to installed entry points so they can do their thing.
+            _load_entry_points("pyhidra.setup", self)
 
-        if self.java_home is None:
-            java_home = subprocess.check_output(_GET_JAVA_HOME, encoding="utf-8", shell=True)
-            self.java_home = Path(java_home.rstrip())
+            pyhidra_details = ExtensionDetails(
+                name="pyhidra",
+                description="Native Python Plugin",
+                author="Department of Defense Cyber Crime Center (DC3)",
+                plugin_version=__version__,
+                version=self.app_info.version
+            )
 
-        jvm = _get_libjvm_path(self.java_home)
+            # Merge classpath
+            jpype_kwargs['classpath'] = self.class_path + jpype_kwargs.get('classpath', [])
 
-        pyhidra_details = ExtensionDetails(
-            name="pyhidra",
-            description="Native Python Plugin",
-            author="Department of Defense Cyber Crime Center (DC3)",
-            plugin_version=__version__,
-        )
+            # force convert strings (required by pyhidra)
+            jpype_kwargs['convertStrings'] = True
 
-        # uninstall any outdated plugins before starting the JVM to ensure they are loaded correctly
-        self._uninstall_old_plugin(pyhidra_details)
+            # set the JAVA_HOME environment variable to the correct one so jpype uses it
+            os.environ['JAVA_HOME'] = str(self.java_home)
 
-        for _, details in self._plugins:
-            self._uninstall_old_plugin(details)
+            jpype.startJVM(
+                None, # indicates to use JAVA_HOME as the jvm path
+                *self.vm_args,
+                **jpype_kwargs
+            )
 
-        # Merge classpath
-        jpype_kwargs['classpath'] = self.class_path + jpype_kwargs.get('classpath', [])
+            # Install hook into python importlib
+            sys.meta_path.append(_PyhidraImportLoader())
 
-        # force convert strings (required by pyhidra)
-        jpype_kwargs['convertStrings'] = True
+            imports.registerDomain("ghidra")
 
-        jpype.startJVM(
-            str(jvm),
-            *self.vm_args,
-            **jpype_kwargs
-        )
+            # import and create a temporary GhidraApplicationLayout this can be
+            # used without initializing Ghidra to obtain the correct Extension path
+            from ghidra import GhidraApplicationLayout
+            self._layout = GhidraApplicationLayout()
 
-        # Install hook into python importlib
-        sys.meta_path.append(_PyhidraImportLoader())
+            # uninstall any outdated plugins before initializing Ghidra to ensure they are loaded correctly
+            self._uninstall_old_plugin(pyhidra_details)
 
-        imports.registerDomain("ghidra")
+            for _, details in self._plugins:
+                try:
+                    self._uninstall_old_plugin(details)
+                except:
+                    logger.warning("failed to uninstall plugin %s", details.name)
 
-        from ghidra import GhidraLauncher
-        self.layout = GhidraLauncher.initializeGhidraEnvironment()
 
-        # install the Pyhidra plugin.
-        from pyhidra.java import plugin
-        needs_reload = self._install_plugin(Path(plugin.__file__).parent, pyhidra_details)
+            from ghidra import GhidraLauncher
+            self._layout = GhidraLauncher.initializeGhidraEnvironment()
 
-        if needs_reload:
-            # "restart" Ghidra
-            self.layout = GhidraLauncher.initializeGhidraEnvironment()
-            needs_reload = False
+            # install the Pyhidra plugin.
+            from pyhidra.java import plugin
+            needs_reload = self._install_plugin(Path(plugin.__file__).parent, pyhidra_details)
 
-        # import it at the end so interfaces in our java code may be implemented
-        from pyhidra.java.plugin.plugin import PyPhidraPlugin
-        PyPhidraPlugin.register()
+            if needs_reload:
+                # "restart" Ghidra
+                self._layout = GhidraLauncher.initializeGhidraEnvironment()
+                needs_reload = False
 
-        # Add extra class paths
-        # Do this before installing plugins incase dependencies are needed
-        if self.class_files:
-            from java.lang import ClassLoader
-            gcl = ClassLoader.getSystemClassLoader()
-            for path in self.class_files:
-                gcl.addPath(path)
+            from java.lang import System
 
-        # Install extra plugins.
-        for source_path, details in self._plugins:
-            needs_reload = self._install_plugin(source_path, details) or needs_reload
+            # manually check the classpath for the pyhidra plugin to
+            # help diagnose confusing errors (GH #31)
+            # this will help in the future too if Extensions are ever moved outside
+            # of the Ghidra user settings directory
+            jar_path = self._get_plugin_jar_path("pyhidra")
 
-        if needs_reload:
-            # "restart" Ghidra
-            self.layout = GhidraLauncher.initializeGhidraEnvironment()
+        except Exception as e:
+            self._report_fatal_error("An error occured launching Ghidra", str(e), e)
 
-        # import properties to register the property customizer
-        from . import properties as _
+        # NOTE: be very careful not to cause an exception here because there will be
+        # no indication of a problem in GUI mode unless started with pyhidra -g -v
 
-        _load_entry_points("pyhidra.pre_launch")
+        CLASSPATH_PROPERTY = "java.class.path"
+        classpath = System.getProperty(CLASSPATH_PROPERTY)
+        if classpath is None:
+            # this is impossible but a helpful message is
+            # better than "'NoneType' object hsas no attribute 'split'"
+            msg = f"Required Java property {CLASSPATH_PROPERTY} not found"
+            self._report_fatal_error(f"No Classpath", msg, RuntimeError(msg))
 
-        self._launch()
+        # ensure it is a Python string (not Java string) and then split the classpath
+        classpath = str(classpath).split(os.pathsep)
+        if str(jar_path) not in classpath:
+            title = "Classpath Setup Error"
+            msg = "Pyhidra plugin is not in the system classpath"
+            # Ghidra uses this property depending on JVM configuration
+            ext_classpath = System.getProperty("java.class.path.ext")
+            if ext_classpath is None:
+                logger.debug("plugin path: %s\nclasspath: %s", jar_path, '\n'.join(classpath))
+                self._report_fatal_error(title, msg, RuntimeError(msg))
+            classpath = str(ext_classpath).split(os.pathsep)
+            if str(jar_path) not in classpath:
+                logger.debug("plugin path: %s\nclasspath: %s", jar_path, '\n'.join(classpath))
+                self._report_fatal_error(title, msg, RuntimeError(msg))
+
+        try:
+            # import it at the end so interfaces in our java code may be implemented
+            from pyhidra.java.plugin.plugin import PyPhidraPlugin
+            PyPhidraPlugin.register()
+
+            # Add extra class paths
+            # Do this before installing plugins incase dependencies are needed
+            if self.class_files:
+                from java.lang import ClassLoader
+                gcl = ClassLoader.getSystemClassLoader()
+                for path in self.class_files:
+                    gcl.addPath(path)
+
+            # Install extra plugins.
+            for source_path, details in self._plugins:
+                needs_reload = self._install_plugin(source_path, details) or needs_reload
+
+            if needs_reload:
+                # "restart" Ghidra
+                self._layout = GhidraLauncher.initializeGhidraEnvironment()
+
+            # import properties to register the property customizer
+            from . import properties as _
+
+            _load_entry_points("pyhidra.pre_launch")
+
+            self._launch()
+        except Exception as e:
+            self._report_fatal_error("An error occured launching Ghidra", str(e), e)
 
     def get_install_path(self, plugin_name: str) -> Path:
         """
         Obtains the path for installation of a given plugin.
         """
-        return get_current_application().extension_path / plugin_name
+        return self.extension_path / plugin_name
+
+    def _get_plugin_jar_path(self, plugin_name: str) -> Path:
+        return self.get_install_path(plugin_name) / "lib" / (plugin_name + ".jar")
 
     def uninstall_plugin(self, plugin_name: str):
         """
@@ -284,11 +378,12 @@ class PyhidraLauncher:
             # delete the existing extension so it will be up-to-date
             try:
                 shutil.rmtree(path)
-            except:  # pylint: disable=bare-except
-                title = "Plugin Update Failed"
-                msg = f"Could not delete existing plugin at\n{path}"
-                logger.exception(msg)
-                self._report_fatal_error(title, msg)
+            except Exception as e:
+                self._report_fatal_error(
+                    "Plugin Update Failed",
+                    f"Could not delete existing plugin at\n{path}",
+                    e
+                )
 
     def _uninstall_old_plugin(self, details: ExtensionDetails):
         """
@@ -309,6 +404,8 @@ class PyhidraLauncher:
         """
         Compiles and installs a Ghidra extension if not already installed.
         """
+        if details.version is None:
+            details.version = self.app_info.version
         plugin_name = details.name
         path = self.get_install_path(plugin_name)
         ext = path / "extension.properties"
@@ -363,9 +460,6 @@ class DeferredPyhidraLauncher(PyhidraLauncher):
     initialize_ghidra must be called before all Ghidra classes are fully available.
     """
 
-    def __init__(self, verbose=False):
-        super().__init__(verbose)
-
     def initialize_ghidra(self, headless=True):
         """
         Finished Ghidra initialization
@@ -378,9 +472,9 @@ class DeferredPyhidraLauncher(PyhidraLauncher):
         with _silence_java_output(not self.verbose, not self.verbose):
             if headless:
                 config = HeadlessGhidraApplicationConfiguration()
-                Application.initializeApplication(self.layout, config)
+                Application.initializeApplication(self._layout, config)
             else:
-                GhidraRun().launch(self.layout, self.args)
+                GhidraRun().launch(self._layout, self.args)
 
 
 class HeadlessPyhidraLauncher(PyhidraLauncher):
@@ -388,20 +482,11 @@ class HeadlessPyhidraLauncher(PyhidraLauncher):
     Headless pyhidra launcher
     """
 
-    def __init__(self, verbose=False):
-        super().__init__(verbose)
-
     def _launch(self):
         from ghidra.framework import Application, HeadlessGhidraApplicationConfiguration
         with _silence_java_output(not self.verbose, not self.verbose):
             config = HeadlessGhidraApplicationConfiguration()
-            Application.initializeApplication(self.layout, config)
-
-
-def _popup_error(header: str, msg: str) -> NoReturn:
-    import tkinter.messagebox
-    tkinter.messagebox.showerror(header, msg)
-    sys.exit(msg)
+            Application.initializeApplication(self._layout, config)
 
 
 class _PyhidraStdOut:
@@ -441,12 +526,16 @@ class GuiPyhidraLauncher(PyhidraLauncher):
     GUI pyhidra launcher
     """
 
-    def __init__(self, verbose=False):
-        super().__init__(verbose)
+    @classmethod
+    def popup_error(cls, header: str, msg: str) -> NoReturn:
+        import tkinter.messagebox
+        tkinter.messagebox.showerror(header, msg)
+        sys.exit(msg)
 
     @classmethod
-    def _report_fatal_error(cls, title: str, msg: str) -> NoReturn:
-        _popup_error(title, msg)
+    def _report_fatal_error(cls, title: str, msg: str, cause: Exception) -> NoReturn:
+        logger.exception(cause)
+        cls.popup_error(title, msg)
 
     @staticmethod
     def _get_thread(name: str):
@@ -462,13 +551,13 @@ class GuiPyhidraLauncher(PyhidraLauncher):
         from java.lang import Runtime, Thread
 
         if sys.platform == "win32":
-            appid = ctypes.c_wchar_p(get_current_application().name)
+            appid = ctypes.c_wchar_p(self.app_info.name)
             ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(appid)
 
         stdout = _PyhidraStdOut(sys.stdout)
         stderr = _PyhidraStdOut(sys.stderr)
         with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            jpype.setupGuiEnvironment(lambda: GhidraRun().launch(self.layout, self.args))
+            jpype.setupGuiEnvironment(lambda: GhidraRun().launch(self._layout, self.args))
             is_exiting = threading.Event()
             Runtime.getRuntime().addShutdownHook(Thread(is_exiting.set))
             try:

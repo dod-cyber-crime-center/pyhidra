@@ -4,7 +4,7 @@ from pathlib import Path
 from os import pathsep
 
 
-COMPILER_OPTIONS = ["-target", "11", "-source", "11"]
+COMPILER_OPTIONS = ["-target", "17", "-source", "17"]
 
 
 def _to_jar_(jar_path: Path, root: Path):
