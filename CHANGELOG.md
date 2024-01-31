@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.1] - 2024-01-31
+- Fixed bug in `uninstall_plugin` script.
+
 ## [1.0.0] - 2024-01-30
 - Fixed #21, #31 and #34.
 - Pyhidra launcher will no longer terminate Python if a fatal exception occurs when launching, except in GUI mode.
@@ -86,7 +89,8 @@
 ## 0.1.0 - 2021-06-14
 - Initial release
 
-[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.0.0...HEAD
+[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.0.1...HEAD
+[1.0.1]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.4...1.0.0
 [0.5.4]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.3...0.5.4
 [0.5.3]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.2...0.5.3
