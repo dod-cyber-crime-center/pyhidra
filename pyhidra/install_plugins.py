@@ -4,11 +4,13 @@ Script to install Ghidra plugins.
 
 import argparse
 from pathlib import Path
+import logging
 
 import pyhidra
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     # spin everything up to ensure all new plugins are installed and exit
     parser = argparse.ArgumentParser("Install Ghidra Plugins")
     parser.add_argument(

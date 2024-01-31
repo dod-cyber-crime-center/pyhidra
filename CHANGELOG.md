@@ -2,7 +2,7 @@
 
 ## [1.0.0] - 2024-01-30
 - Fixed #21, #31 and #34.
-- Phidra launcher will no longer terminate Python if a fatal exception occurs when launching, except in GUI mode.
+- Pyhidra launcher will no longer terminate Python if a fatal exception occurs when launching, except in GUI mode.
 - Adds `this` variable to Python scripts to mirror Ghidra's builtin Python script behavior.
 - Plugins are now compiled targeting JDK 17.
 - Fixed deprecation warning when compiling plugin.
