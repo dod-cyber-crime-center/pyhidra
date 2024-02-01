@@ -46,7 +46,9 @@ def _gui():
     # where tkinter can't be imported. Since there may not be an attached
     # terminal, the problem still needs to be reported somehow.
     try:
-        import tkinter.messagebox as _
+        # This import creates problems for macOS
+        if platform.system() != 'Darwin':
+            import tkinter.messagebox as _
     except ImportError as e:
         if platform.system() == 'Windows':
             # there is no console/terminal to report the error
