@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2] - 2024-02-14
+- Added `--debug` switch to `pyhidra` command line to set the `pyhidra` logging level to `DEBUG`.
+- Warnings when compiling Java code are now logged at the `INFO` logging level.
+- The `java_compile` function will now raise `ValueError` when the source code fails to compile.
+- Corrected handling of partially installed plugins due to previously failed Java compilation.
+- Fixed silent JVM crash during startup when running `pyhidraw` on Mac.
+
 ## [1.0.1] - 2024-01-31
 - Fixed bug in `uninstall_plugin` script.
 
@@ -89,7 +96,8 @@
 ## 0.1.0 - 2021-06-14
 - Initial release
 
-[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.0.1...HEAD
+[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.0.2...HEAD
+[1.0.2]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.0.1...1.0.2
 [1.0.1]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.4...1.0.0
 [0.5.4]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.3...0.5.4

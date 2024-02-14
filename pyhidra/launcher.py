@@ -345,7 +345,11 @@ class PyhidraLauncher:
 
             # Install extra plugins.
             for source_path, details in self._plugins:
-                needs_reload = self._install_plugin(source_path, details) or needs_reload
+                try:
+                    needs_reload = self._install_plugin(source_path, details) or needs_reload
+                except Exception as e:
+                    # we should always warn if a plugin failed to compile
+                    logger.warn(e, exc_info=e)
 
             if needs_reload:
                 # "restart" Ghidra
@@ -411,12 +415,16 @@ class PyhidraLauncher:
         ext = path / "extension.properties"
         manifest = path / "Module.manifest"
         root = source_path
+        jar_path = path / "lib" / (plugin_name + ".jar")
 
-        if not path.exists():
-            path.mkdir(parents=True)
+        if not jar_path.exists():
+            path.mkdir(parents=True, exist_ok=True)
 
-            jar_path = path / "lib" / (plugin_name + ".jar")
-            java_compile(root.parent, jar_path)
+            try:
+                java_compile(root.parent, jar_path)
+            except:
+                shutil.rmtree(path, ignore_errors=True)
+                raise
 
             ext.write_text(str(details))
 

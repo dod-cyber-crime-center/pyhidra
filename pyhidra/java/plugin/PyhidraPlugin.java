@@ -18,7 +18,7 @@ import ghidra.program.util.ProgramSelection;
 @PluginInfo(
 	status = PluginStatus.RELEASED,
 	packageName = MiscellaneousPluginPackage.NAME,
-	category = PluginCategoryNames.INTERPRETERS,
+	category = PluginCategoryNames.COMMON,
 	shortDescription = "pyhidra plugin",
 	description = "Native Python access in Ghidra. This plugin has no effect if Ghidra was not started via pyhidraw.",
 	servicesRequired = { InterpreterPanelService.class }

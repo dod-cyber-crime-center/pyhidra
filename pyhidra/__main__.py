@@ -1,5 +1,6 @@
 import argparse
 import code
+import logging
 
 import sys
 from pathlib import Path
@@ -7,6 +8,10 @@ from pathlib import Path
 import pyhidra
 import pyhidra.core
 import pyhidra.gui
+
+
+# NOTE: this must be "pyhidra" and not __name__
+logger = logging.getLogger("pyhidra")
 
 
 def _create_shortcut():
@@ -42,6 +47,7 @@ class PyhidraArgs(argparse.Namespace):
         self.install_dir: Path = None
         self._script_args = []
         self.gui = False
+        self.debug = False
 
     def func(self):
         """
@@ -50,6 +56,9 @@ class PyhidraArgs(argparse.Namespace):
         if not self.valid:
             self.parser.print_usage()
             return
+
+        if self.debug:
+            logger.setLevel(logging.DEBUG)
 
         if self.gui:
             pyhidra.gui.gui(self.install_dir)
@@ -149,15 +158,22 @@ class PathAction(argparse.Action):
 def _get_parser():
     is_win32 = sys.platform == "win32"
     extra_flag = "[-s] " if is_win32 else ""
-    usage = f"pyhidra [-h] [-v] [-g] {extra_flag}[--no-analysis] [--project-name name] [--project-path path] " \
-            "[binary_path] [script_path] ..."
+    usage = f"pyhidra [-h] [-v] [-g] [-d] [--install-dir] {extra_flag}[--no-analysis] "\
+            "[--project-name name] [--project-path path] [binary_path] [script_path] ..."
     parser = argparse.ArgumentParser(prog="pyhidra", usage=usage)
     parser.add_argument(
         "-v",
         "--verbose",
         dest="verbose",
         action="store_true",
-        help="Enable verbose output during Ghidra initialization"
+        help="Enable verbose JVM output during Ghidra initialization"
+    )
+    parser.add_argument(
+        "-d",
+        "--debug",
+        default=False,
+        action="store_true",
+        help="Sets the log level to DEBUG"
     )
     parser.add_argument(
         "-g",
@@ -181,7 +197,7 @@ def _get_parser():
         default=None,
         dest="install_dir",
         metavar="",
-        help="Path to Ghidra installation. "\
+        help="Path to Ghidra installation. "
              "(defaults to the GHIDRA_INSTALL_DIR environment variable)"
     )
     parser.add_argument(
@@ -231,6 +247,11 @@ def main():
     """
     pyhidra module main function
     """
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter("%(filename)s:%(lineno)d %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
     parser = _get_parser()
     parser.parse_args(namespace=PyhidraArgs(parser)).func()
 
