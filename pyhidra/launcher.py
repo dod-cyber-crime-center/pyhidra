@@ -555,7 +555,7 @@ class GuiPyhidraLauncher(PyhidraLauncher):
 
     def _launch(self):
         import ctypes
-        from ghidra import GhidraRun
+        from ghidra import Ghidra
         from java.lang import Runtime, Thread
 
         if sys.platform == "win32":
@@ -565,7 +565,7 @@ class GuiPyhidraLauncher(PyhidraLauncher):
         stdout = _PyhidraStdOut(sys.stdout)
         stderr = _PyhidraStdOut(sys.stderr)
         with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            jpype.setupGuiEnvironment(lambda: GhidraRun().launch(self._layout, self.args))
+            jpype.setupGuiEnvironment(lambda: Ghidra.main(["ghidra.GhidraRun", *self.args]))
             is_exiting = threading.Event()
             Runtime.getRuntime().addShutdownHook(Thread(is_exiting.set))
             try:

@@ -65,9 +65,11 @@ def _setup_project(
         project_location: Union[str, Path] = None,
         project_name: str = None,
         language: str = None,
-        compiler: str = None
+        compiler: str = None,
+        loader: Union[str, JClass] = None
 ) -> Tuple["GhidraProject", "Program"]:
     from ghidra.base.project import GhidraProject
+    from java.lang import ClassLoader
     from java.io import IOException
     if binary_path is not None:
         binary_path = Path(binary_path)
@@ -80,6 +82,19 @@ def _setup_project(
     project_location /= project_name
     project_location.mkdir(exist_ok=True, parents=True)
 
+    if isinstance(loader, str):
+        from java.lang import ClassNotFoundException
+        try:
+            gcl = ClassLoader.getSystemClassLoader()
+            loader = JClass(loader, gcl)
+        except (TypeError, ClassNotFoundException) as e:
+            raise ValueError from e
+
+    if isinstance(loader, JClass):
+        from ghidra.app.util.opinion import Loader
+        if not Loader.class_.isAssignableFrom(loader):
+            raise TypeError(f"{loader} does not implement ghidra.app.util.opinion.Loader")
+
     # Open/Create project
     program: "Program" = None
     try:
@@ -90,15 +105,24 @@ def _setup_project(
     except IOException:
         project = GhidraProject.createProject(project_location, project_name, False)
 
+    # NOTE: GhidraProject.importProgram behaves differently when a loader is provided
+    # loaderClass may not be null so we must use the correct method override
+
     if binary_path is not None and program is None:
         if language is None:
-            program = project.importProgram(binary_path)
+            if loader is None:
+                program = project.importProgram(binary_path)
+            else:
+                program = project.importProgram(binary_path, loader)
             if program is None:
                 raise RuntimeError(f"Ghidra failed to import '{binary_path}'. Try providing a language manually.")
         else:
             lang = _get_language(language)
             comp = _get_compiler_spec(lang, compiler)
-            program = project.importProgram(binary_path, lang, comp)
+            if loader is None:
+                program = project.importProgram(binary_path, lang, comp)
+            else:
+                program = project.importProgram(binary_path, loader, lang, comp)
             if program is None:
                 message = f"Ghidra failed to import '{binary_path}'. "
                 if compiler:
@@ -158,7 +182,8 @@ def open_program(
         analyze=True,
         language: str = None,
         compiler: str = None,
-) -> ContextManager["FlatProgramAPI"]:
+        loader: Union[str, JClass] = None
+) -> ContextManager["FlatProgramAPI"]: # type: ignore
     """
     Opens given binary path in Ghidra and returns FlatProgramAPI object.
 
@@ -172,8 +197,11 @@ def open_program(
         (Defaults to Ghidra's detected LanguageID)
     :param compiler: The CompilerSpecID to use for the program. Requires a provided language.
         (Defaults to the Language's default compiler)
+    :param loader: The `ghidra.app.util.opinion.Loader` class to use when importing the program.
+        This may be either a Java class or its path. (Defaults to None)
     :return: A Ghidra FlatProgramAPI object.
-    :raises ValueError: If the provided language or compiler is invalid.
+    :raises ValueError: If the provided language, compiler or loader is invalid.
+    :raises TypeError: If the provided loader does not implement `ghidra.app.util.opinion.Loader`.
     """
 
     from pyhidra.launcher import PyhidraLauncher, HeadlessPyhidraLauncher
@@ -189,7 +217,8 @@ def open_program(
         project_location,
         project_name,
         language,
-        compiler
+        compiler,
+        loader
     )
     GhidraScriptUtil.acquireBundleHostReference()
 
@@ -215,6 +244,7 @@ def _flat_api(
         analyze=True,
         language: str = None,
         compiler: str = None,
+        loader: Union[str, JClass] = None,
         *,
         install_dir: Path = None
 ):
@@ -234,10 +264,13 @@ def _flat_api(
         (Defaults to Ghidra's detected LanguageID)
     :param compiler: The CompilerSpecID to use for the program. Requires a provided language.
         (Defaults to the Language's default compiler)
+    :param loader: The `ghidra.app.util.opinion.Loader` class to use when importing the program.
+        This may be either a Java class or its path. (Defaults to None)
     :param install_dir: The path to the Ghidra installation directory. This parameter is only
         used if Ghidra has not been started yet.
         (Defaults to the GHIDRA_INSTALL_DIR environment variable)
-    :raises ValueError: If the provided language or compiler is invalid.
+    :raises ValueError: If the provided language, compiler or loader is invalid.
+    :raises TypeError: If the provided loader does not implement `ghidra.app.util.opinion.Loader`.
     """
     from pyhidra.launcher import PyhidraLauncher, HeadlessPyhidraLauncher
 
@@ -251,7 +284,8 @@ def _flat_api(
             project_location,
             project_name,
             language,
-            compiler
+            compiler,
+            loader
         )
 
     from ghidra.app.script import GhidraScriptUtil
@@ -282,6 +316,7 @@ def run_script(
     analyze=True,
     lang: str = None,
     compiler: str = None,
+    loader: Union[str, JClass] = None,
     *,
     install_dir: Path = None
 ):
@@ -301,12 +336,15 @@ def run_script(
         (Defaults to Ghidra's detected LanguageID)
     :param compiler: The CompilerSpecID to use for the program. Requires a provided language.
         (Defaults to the Language's default compiler)
+    :param loader: The `ghidra.app.util.opinion.Loader` class to use when importing the program.
+        This may be either a Java class or its path. (Defaults to None)
     :param install_dir: The path to the Ghidra installation directory. This parameter is only
         used if Ghidra has not been started yet.
         (Defaults to the GHIDRA_INSTALL_DIR environment variable)
-    :raises ValueError: If the provided language or compiler is invalid.
+    :raises ValueError: If the provided language, compiler or loader is invalid.
+    :raises TypeError: If the provided loader does not implement `ghidra.app.util.opinion.Loader`.
     """
     script_path = str(script_path)
-    args = binary_path, project_location, project_name, verbose, analyze, lang, compiler
+    args = binary_path, project_location, project_name, verbose, analyze, lang, compiler, loader
     with _flat_api(*args, install_dir=install_dir) as script:
         script.run(script_path, script_args)

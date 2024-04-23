@@ -5,6 +5,7 @@ from pathlib import Path
 import platform
 import sys
 import traceback
+from typing import NoReturn
 import warnings
 
 import pyhidra
@@ -37,53 +38,37 @@ class _GuiArgumentParser(argparse.ArgumentParser):
         self._print_message(self.format_help(), file)
 
 
-def _gui():
-    # this is the entry from the gui script
-    # there may or may not be an attached terminal
-    # depending on the current operating system
+def _gui_mac() -> NoReturn:
+    args = _parse_args()
+    install_dir = args.install_dir
+    path = Path(sys.base_exec_prefix) / "Resources/Python.app/Contents/MacOS/Python"
+    if path.exists():
+        # the python launcher app will correctly start the venv if sys.executable is in a venv
+        argv = [sys.executable, "-m", "pyhidra", "-g"]
+        if install_dir is not None:
+            argv += ["--install-dir", str(install_dir)]
+        actions = ((os.POSIX_SPAWN_CLOSE, 0), (os.POSIX_SPAWN_CLOSE, 1), (os.POSIX_SPAWN_CLOSE, 2))
+        os.posix_spawn(str(path), argv, os.environ, file_actions=actions)
+    else:
+        print("could not find the Python.app path, launch failed")
+    sys.exit(0)
 
-    # This check handles the edge case of having a corrupt Python installation
-    # where tkinter can't be imported. Since there may not be an attached
-    # terminal, the problem still needs to be reported somehow.
-    try:
-        # This import creates problems for macOS
-        if platform.system() != 'Darwin':
-            import tkinter.messagebox as _
-    except ImportError as e:
-        if platform.system() == 'Windows':
-            # there is no console/terminal to report the error
-            import ctypes
-            MessageBox = ctypes.windll.user32.MessageBoxW
-            MessageBox(None, str(e), "Import Error", 0)
-            sys.exit(1)
-        # report this before detaching from the console or no
-        # errors will be reported if they occur
-        raise
 
-    try:
-        parser = _GuiArgumentParser(prog="pyhidraw")
-        parser.add_argument(
-            "--install-dir",
-            type=Path,
-            default=None,
-            dest="install_dir",
-            metavar="",
-            help="Path to Ghidra installation. "\
-                "(defaults to the GHIDRA_INSTALL_DIR environment variable)"
-        )
-        args = parser.parse_args()
-        install_dir = args.install_dir
-    except Exception as e:
-        import tkinter.messagebox
-        msg = "".join(traceback.format_exception(type(e), value=e, tb=e.__traceback__))
-        tkinter.messagebox.showerror(type(e), msg)
-        sys.exit(1)
+def _parse_args():
+    parser = _GuiArgumentParser(prog="pyhidraw")
+    parser.add_argument(
+        "--install-dir",
+        type=Path,
+        default=None,
+        dest="install_dir",
+        metavar="",
+        help="Path to Ghidra installation. "\
+            "(defaults to the GHIDRA_INSTALL_DIR environment variable)"
+    )
+    return parser.parse_args()
 
-    if platform.system() == 'Windows':
-        # gui_script works like it is supposed to on windows
-        gui(install_dir)
-        return
 
+def _gui_default(install_dir: Path):
     pid = os.fork()
     if pid != 0:
         # original process can exit
@@ -98,6 +83,46 @@ def _gui():
 
     # run the application
     gui(install_dir)
+
+
+def _gui():
+    # this is the entry from the gui script
+    # there may or may not be an attached terminal
+    # depending on the current operating system
+
+    if platform.system() == "Darwin":
+        _gui_mac()
+
+    # This check handles the edge case of having a corrupt Python installation
+    # where tkinter can't be imported. Since there may not be an attached
+    # terminal, the problem still needs to be reported somehow.
+    try:
+        import tkinter.messagebox as _
+    except ImportError as e:
+        if platform.system() == "Windows":
+            # there is no console/terminal to report the error
+            import ctypes
+            MessageBox = ctypes.windll.user32.MessageBoxW
+            MessageBox(None, str(e), "Import Error", 0)
+            sys.exit(1)
+        # report this before detaching from the console or no
+        # errors will be reported if they occur
+        raise
+
+    try:
+        args = _parse_args()
+        install_dir = args.install_dir
+    except Exception as e:
+        import tkinter.messagebox
+        msg = "".join(traceback.format_exception(type(e), value=e, tb=e.__traceback__))
+        tkinter.messagebox.showerror(type(e), msg)
+        sys.exit(1)
+
+    if platform.system() == 'Windows':
+        # gui_script works like it is supposed to on windows
+        gui(install_dir)
+    else:
+        _gui_default(install_dir)
 
 
 def gui(install_dir: Path = None):

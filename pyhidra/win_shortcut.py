@@ -8,10 +8,12 @@ from pyhidra import DeferredPyhidraLauncher
 # creating a shortcut with the winapi to have a set app id is trivial right?
 
 
-def create_shortcut(link: Path):
-    if not link.is_absolute():
-        link = link.absolute()
-    link = link.with_suffix(".lnk")
+
+
+def create_shortcut(install_dir: Path = None):
+    """Creates a shortcut to Ghidra (with pyhidra) on the desktop."""
+
+    link = Path("~/Desktop/Ghidra (pyhidra).lnk").expanduser()
     if link.exists():
         sys.exit(f"{link} already exists")
 
@@ -27,7 +29,7 @@ def create_shortcut(link: Path):
             ctypes.oledll.ole32.IIDFromString(key, ctypes.byref(self))
             self[-1] = pid
 
-    launcher = DeferredPyhidraLauncher()
+    launcher = DeferredPyhidraLauncher(install_dir=install_dir)
 
     _PropertyVariant = struct.Struct(f"B7xP{ctypes.sizeof(ctypes.c_void_p())}x")
     _AppUserModelId = _PROPERTYKEY("{9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3}", 5)
@@ -80,3 +82,12 @@ def create_shortcut(link: Path):
         if p_store:
             _Release(p_store)
         ctypes.oledll.ole32.CoUninitialize()
+
+    print(f"Installed {link}")
+
+
+def remove_shortcut():
+    link = Path("~/Desktop/Ghidra (pyhidra).lnk").expanduser()
+    if link.exists():
+        link.unlink()
+        print(f"Removed {link}")

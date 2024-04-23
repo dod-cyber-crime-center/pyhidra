@@ -14,11 +14,6 @@ import pyhidra.gui
 logger = logging.getLogger("pyhidra")
 
 
-def _create_shortcut():
-    from pyhidra.win_shortcut import create_shortcut
-    create_shortcut(Path(sys.argv[-1]))
-
-
 def _interpreter(interpreter_globals: dict):
     from ghidra.framework import Application
     version = Application.getApplicationVersion()
@@ -182,15 +177,6 @@ def _get_parser():
         dest="gui",
         help="Start Ghidra GUI"
     )
-    if is_win32:
-        parser.add_argument(
-            "-s",
-            "--shortcut",
-            action="store_const",
-            dest="func",
-            const=_create_shortcut,
-            help="Creates a shortcut that can be pinned to the taskbar (Windows only)"
-        )
     parser.add_argument(
         "--install-dir",
         type=Path,

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0] - 2024-04-23
+- Improved `pyhidraw` compatibility on Mac.
+- Added loader parameter to `open_program` and `run_script` (#37).
+- Added script to install a desktop launcher for Windows and Linux. (see [docs](./README.md#desktop-entry))
+- Removed `--shortcut` option on `pyhidra` command.
+
+
 ## [1.0.2] - 2024-02-14
 - Added `--debug` switch to `pyhidra` command line to set the `pyhidra` logging level to `DEBUG`.
 - Warnings when compiling Java code are now logged at the `INFO` logging level.
@@ -96,7 +103,8 @@
 ## 0.1.0 - 2021-06-14
 - Initial release
 
-[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.0.2...HEAD
+[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.1.0...HEAD
+[1.1.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.0.2...1.1.0
 [1.0.2]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.0.1...1.0.2
 [1.0.1]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/0.5.4...1.0.0

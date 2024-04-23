@@ -86,6 +86,44 @@ def test_no_language_with_compiler(shared_datadir: Path):
         pass
 
 
+def test_loader(shared_datadir: Path):
+    strings_exe = shared_datadir / EXE_NAME
+    with pyhidra.open_program(
+            strings_exe,
+            analyze=False,
+            language="DATA:LE:64:default",
+            compiler="pointer32",
+            loader="ghidra.app.util.opinion.BinaryLoader"
+        ) as flat_api:
+            assert bytes(flat_api.getBytes(flat_api.toAddr(0), 2)) == b"MZ"
+
+
+def test_invalid_loader(shared_datadir: Path):
+    strings_exe = shared_datadir / EXE_NAME
+    with pytest.raises(ValueError):
+        with pyhidra.open_program(
+                strings_exe,
+                analyze=False,
+                language="DATA:LE:64:default",
+                compiler="pointer32",
+                loader="notaclass"
+            ) as flat_api:
+                pass
+
+
+def test_invalid_loader_type(shared_datadir: Path):
+    strings_exe = shared_datadir / EXE_NAME
+    with pytest.raises(TypeError):
+        with pyhidra.open_program(
+                strings_exe,
+                analyze=False,
+                language="DATA:LE:64:default",
+                compiler="pointer32",
+                loader="ghidra.app.util.demangler.gnu.GnuDemangler"
+            ) as flat_api:
+                pass
+
+
 def test_no_project(capsys, shared_datadir: Path):
     pyhidra.run_script(None, shared_datadir / "projectless_script.py")
     captured = capsys.readouterr()

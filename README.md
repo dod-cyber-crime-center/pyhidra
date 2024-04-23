@@ -15,7 +15,7 @@ Pyhidra was initially developed for use with Dragodis and is designed to be inst
 1. Install pyhidra.
 
 ```console
-> pip install pyhidra
+pip install pyhidra
 ```
 ### Enabling the Ghidra User Interface Plugin
 
@@ -26,6 +26,24 @@ Pyhidra was initially developed for use with Dragodis and is designed to be inst
  ![](https://raw.githubusercontent.com/Defense-Cyber-Crime-Center/pyhidra/master/images/image-20220111154029764.png)
 5. Check and enable Pyhidra as seen in the image below.
  ![](https://raw.githubusercontent.com/Defense-Cyber-Crime-Center/pyhidra/master/images/image-20220111154120531.png)
+
+### Desktop Entry
+
+If on linux or windows, a desktop entry can be created to launch an instance of Ghidra with pyhidra attached.
+
+```console
+python -m pyhidra.install_desktop
+```
+
+On windows, this will install a shortcut file on the user's desktop. On linux, this will create an entry 
+that can be found in the applications launcher.
+
+
+To remove, run the following:
+
+```console
+python -m pyhidra.uninstall_desktop
+```
 
 ### Manual Plugin Installation
 
