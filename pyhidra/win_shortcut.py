@@ -51,7 +51,7 @@ def create_shortcut(install_dir: Path = None):
     _Save = WINFUNCTYPE(ctypes.HRESULT, ctypes.c_wchar_p, ctypes.wintypes.BOOL)(6, "Save")
     _SetPath = WINFUNCTYPE(ctypes.HRESULT, ctypes.c_wchar_p)(20, "SetPath")
     _SetDescription = WINFUNCTYPE(ctypes.HRESULT, ctypes.c_wchar_p)(7, "SetDescription")
-    _SetIconLocation = WINFUNCTYPE(ctypes.HRESULT, ctypes.c_wchar_p)(17, "SetIconLocation")
+    _SetIconLocation = WINFUNCTYPE(ctypes.HRESULT, ctypes.c_wchar_p, ctypes.c_int)(17, "SetIconLocation")
     _SetValue = WINFUNCTYPE(ctypes.HRESULT, ctypes.c_void_p, ctypes.c_void_p)(6, "SetValue")
 
     link = str(link)
@@ -67,7 +67,7 @@ def create_shortcut(install_dir: Path = None):
         _CoCreateInstance(_CLSID_ShellLink, None, _CLSCTX_INPROC_SERVER, _IID_IShellLinkW, ref)
         _SetPath(p_link, ctypes.c_wchar_p(str(target)))
         _SetDescription(p_link, p_app_id)
-        _SetIconLocation(p_link, ctypes.c_wchar_p(icon))
+        _SetIconLocation(p_link, ctypes.c_wchar_p(icon), 0)
         _QueryInterface(p_link, _IID_IPropertyStore, ctypes.byref(p_store))
         value = _PropertyVariant.pack(_VT_LPWSTR, ctypes.cast(p_app_id, ctypes.c_void_p).value)
         value = (ctypes.c_byte * len(value))(*value)

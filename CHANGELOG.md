@@ -1,11 +1,19 @@
 # Changelog
 
+## [1.2.0] - 2024-05-31
+- Fixed Python interpreter completion results for members of currentAddress, currentProgram, etc.
+- Fixed handling of complex Python interpreter completions.
+- Use configured theme colors for Python interpreter completions.
+- Removed Mac specific pyobjc dependency.
+- Fixed bug causing Mac specific properties from launch.properties to be omitted.
+- Fixed icon bug with the Windows shortcut.
+- Added Mac support to the script for installing a desktop launcher.
+
 ## [1.1.0] - 2024-04-23
 - Improved `pyhidraw` compatibility on Mac.
 - Added loader parameter to `open_program` and `run_script` (#37).
 - Added script to install a desktop launcher for Windows and Linux. (see [docs](./README.md#desktop-entry))
 - Removed `--shortcut` option on `pyhidra` command.
-
 
 ## [1.0.2] - 2024-02-14
 - Added `--debug` switch to `pyhidra` command line to set the `pyhidra` logging level to `DEBUG`.
@@ -100,10 +108,11 @@
 - Fixed noise produced from an exception during analysis due to an analyzer using a script without acquiring a bundle host reference
 - Fixed exception in open_program from attempting to use a non-public field in `FlatProgramAPI`
 
-## 0.1.0 - 2021-06-14
+## [0.1.0] - 2021-06-14
 - Initial release
 
-[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.1.0...HEAD
+[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.2.0...HEAD
+[1.2.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.0.2...1.1.0
 [1.0.2]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.0.1...1.0.2
 [1.0.1]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.0.0...1.0.1

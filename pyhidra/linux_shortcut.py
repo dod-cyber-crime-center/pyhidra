@@ -39,11 +39,13 @@ def create_shortcut(install_dir: Path = None):
     """Install a desktop entry on Linux machine."""
     pyhidra_exec = Path(sysconfig.get_path("scripts")) / "pyhidra"
     if not pyhidra_exec.exists():
+        # User install
+        pyhidra_exec = Path(sysconfig.get_path("scripts", "posix_user")) / "pyhidra"
+    if not pyhidra_exec.exists():
         sys.exit("pyhidra executable is not installed.")
 
-    command = [str(pyhidra_exec), "--gui"]
     if install_dir:
-        command += ["--install-dir", str(install_dir.expanduser())]
+        pass
     elif install_dir := os.environ.get("GHIDRA_INSTALL_DIR"):
         install_dir = Path(install_dir)
     else:
@@ -51,8 +53,11 @@ def create_shortcut(install_dir: Path = None):
             "Unable to determine Ghidra installation directory. "
             "Please set the GHIDRA_INSTALL_DIR environment variable."
         )
+    
+    command = [str(pyhidra_exec), "--gui", "--install-dir", str(install_dir.expanduser())]
 
     icon = extract_png(install_dir)
+    desktop_path.parent.mkdir(parents=True, exist_ok=True)
     desktop_path.write_text(desktop_entry.format(icon=icon, exec=shlex.join(command)))
     print(f"Installed {desktop_path}")
 

@@ -29,14 +29,17 @@ pip install pyhidra
 
 ### Desktop Entry
 
-If on linux or windows, a desktop entry can be created to launch an instance of Ghidra with pyhidra attached.
+If on linux, mac or windows, a desktop entry can be created to launch an instance of Ghidra with pyhidra attached.
+When this script is run from a virtual environment (ie. venv), pyhidra will be started in this virtual environment
+when launched.
 
 ```console
 python -m pyhidra.install_desktop
 ```
 
 On windows, this will install a shortcut file on the user's desktop. On linux, this will create an entry 
-that can be found in the applications launcher.
+that can be found in the applications launcher. On mac this will create an entry that can be found in 
+the Launchpad.
 
 
 To remove, run the following:

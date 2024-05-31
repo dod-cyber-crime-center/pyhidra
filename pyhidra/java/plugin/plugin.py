@@ -1,13 +1,11 @@
 import contextlib
 import ctypes
-import itertools
 import logging
-import rlcompleter
+import re
 import sys
 import threading
 from code import InteractiveConsole
 
-from ghidra.app.plugin.core.console import CodeCompletion
 from ghidra.app.plugin.core.interpreter import InterpreterConsole, InterpreterPanelService
 from ghidra.framework import Application
 from java.io import BufferedReader, InputStreamReader, PushbackReader
@@ -170,6 +168,8 @@ class PyPhidraPlugin:
     """
     The Python side PyhidraPlugin
     """
+    
+    _WORD_PATTERN = re.compile(r".*?([\w\.]+)\Z") # get the last word, including '.', from the right
 
     def __init__(self, plugin):
         if hasattr(self, '_plugin'):
@@ -224,6 +224,9 @@ class PyPhidraPlugin:
             else:
                 # older versions of Ghidra don't have the `end` argument.
                 line, = args
+            match = self._WORD_PATTERN.match(line)
+            if match:
+                line = match.group(1)
             return self.completer.get_completions(line)
         except Exception as e:
             if not self._logged_completions_change:

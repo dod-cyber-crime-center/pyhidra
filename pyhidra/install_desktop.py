@@ -26,6 +26,8 @@ if __name__ == "__main__":
         from pyhidra.win_shortcut import create_shortcut
     elif sys.platform == "linux":
         from pyhidra.linux_shortcut import create_shortcut
+    elif sys.platform == "darwin":
+        from pyhidra.mac_shortcut import create_shortcut
     else:
         sys.exit("Unsupported platform")
 

@@ -14,16 +14,30 @@ from jpype.types import JDouble, JFloat, JInt, JLong, JShort
 
 NoneType = type(None)
 
-CLASS_COLOR = Color(0, 0, 255)
-CODE_COLOR = Color(0, 64, 0)
-FUNCTION_COLOR = Color(0, 128, 0)
-INSTANCE_COLOR = Color(128, 0, 128)
-MAP_COLOR = Color(64, 96, 128)
-METHOD_COLOR = Color(0, 128, 128)
-NULL_COLOR = Color(255, 0, 0)
-NUMBER_COLOR = Color(64, 64, 64)
-PACKAGE_COLOR = Color(128, 0, 0)
-SEQUENCE_COLOR = Color(128, 96, 64)
+try:
+    from generic.theme import GColor
+    CLASS_COLOR = GColor("color.fg.plugin.python.syntax.class")
+    CODE_COLOR = GColor("color.fg.plugin.python.syntax.code")
+    FUNCTION_COLOR = GColor("color.fg.plugin.python.syntax.function")
+    INSTANCE_COLOR = GColor("color.fg.plugin.python.syntax.instance")
+    MAP_COLOR = GColor("color.fg.plugin.python.syntax.map")
+    METHOD_COLOR = GColor("color.fg.plugin.python.syntax.method")
+    NULL_COLOR = GColor("color.fg.plugin.python.syntax.null")
+    NUMBER_COLOR = GColor("color.fg.plugin.python.syntax.number")
+    PACKAGE_COLOR = GColor("color.fg.plugin.python.syntax.package")
+    SEQUENCE_COLOR = GColor("color.fg.plugin.python.syntax.sequence")
+except:
+    # no custom theme support yet, fall back to hardcoded values
+    CLASS_COLOR = Color(0, 0, 255)
+    CODE_COLOR = Color(0, 64, 0)
+    FUNCTION_COLOR = Color(0, 128, 0)
+    INSTANCE_COLOR = Color(128, 0, 128)
+    MAP_COLOR = Color(64, 96, 128)
+    METHOD_COLOR = Color(0, 128, 128)
+    NULL_COLOR = Color(255, 0, 0)
+    NUMBER_COLOR = Color(64, 64, 64)
+    PACKAGE_COLOR = Color(128, 0, 0)
+    SEQUENCE_COLOR = Color(128, 96, 64)
 
 _TYPE_COLORS = {
     type: CLASS_COLOR,
@@ -83,8 +97,9 @@ class PythonCodeCompleter(Completer):
         return label
 
     def _supplier(self, i: int) -> CodeCompletion:
-        insertion = self.matches[i][len(self.cmd):]
-        return CodeCompletion(self.cmd, insertion, self._get_label(i))
+        match = self.matches[i]
+        insertion = match[len(self.cmd):]
+        return CodeCompletion(match, insertion, self._get_label(i))
 
     def get_completions(self, cmd: str):
         """

@@ -1,4 +1,6 @@
 import contextlib
+import ctypes
+import ctypes.util
 import importlib.metadata
 import inspect
 import logging
@@ -121,6 +123,8 @@ class PyhidraLauncher:
     @classmethod
     def _jvm_args(cls, install_dir: Path) -> List[str]:
         suffix = "_" + platform.system().upper()
+        if suffix == "_DARWIN":
+            suffix = "_MACOS"
         option_pattern: re.Pattern = re.compile(fr"VMARGS(?:{suffix})?=(.+)")
         properties = []
 
@@ -554,7 +558,6 @@ class GuiPyhidraLauncher(PyhidraLauncher):
         return None
 
     def _launch(self):
-        import ctypes
         from ghidra import Ghidra
         from java.lang import Runtime, Thread
 
@@ -565,10 +568,27 @@ class GuiPyhidraLauncher(PyhidraLauncher):
         stdout = _PyhidraStdOut(sys.stdout)
         stderr = _PyhidraStdOut(sys.stderr)
         with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            jpype.setupGuiEnvironment(lambda: Ghidra.main(["ghidra.GhidraRun", *self.args]))
+            Thread(lambda: Ghidra.main(["ghidra.GhidraRun", *self.args])).start()
             is_exiting = threading.Event()
             Runtime.getRuntime().addShutdownHook(Thread(is_exiting.set))
-            try:
-                is_exiting.wait()
-            finally:
-                jpype.shutdownGuiEnvironment()
+            if sys.platform == "darwin":
+                _run_mac_app()
+            is_exiting.wait()
+
+
+def _run_mac_app():
+    # this runs the main event loop
+    # it is required for the GUI to show up
+    objc = ctypes.cdll.LoadLibrary(ctypes.util.find_library("libobjc"))
+    ctypes.cdll.LoadLibrary(ctypes.util.find_library("AppKit")) # required
+    msgSend = objc.objc_msgSend
+    msgSend.restype = ctypes.c_void_p
+    msgSend.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    registerName = objc.sel_registerName
+    registerName.restype = ctypes.c_void_p
+    registerName.argtypes = [ctypes.c_char_p]
+    getClass = objc.objc_getClass
+    getClass.restype = ctypes.c_void_p
+    NSApplication = getClass(b"NSApplication")
+    sharedApplication = msgSend(NSApplication, registerName(b"sharedApplication"))
+    msgSend(sharedApplication, registerName(b"run"))

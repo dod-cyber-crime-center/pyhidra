@@ -17,6 +17,7 @@ _headless_interpreter = None
 
 
 class _StaticMap(dict):
+    # this is a special view of the PyGhidraScript for use with rlcompleter
 
     __slots__ = ('script',)
 
@@ -27,6 +28,14 @@ class _StaticMap(dict):
     def __getitem__(self, key):
         res = self.get(key, _NO_ATTRIBUTE)
         if res is not _NO_ATTRIBUTE:
+            if isinstance(res, property):
+                # rlcompleter is attempting to use a property getter on the interpreter script
+                # allow the property magic to take place
+                # this is necessary for completions on currentAddress, currentProgram, etc.
+                try:
+                    return getattr(self.script, key)
+                except AttributeError:
+                    return res
             return res
         raise KeyError(key)
 
