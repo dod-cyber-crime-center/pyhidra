@@ -16,13 +16,13 @@ import ghidra.program.model.address.Address;
 import ghidra.program.model.listing.Program;
 import ghidra.program.util.ProgramLocation;
 import ghidra.program.util.ProgramSelection;
-import ghidra.python.PythonScriptProvider;
+import ghidra.jython.JythonScriptProvider;
 import ghidra.util.SystemUtilities;
 import ghidra.util.classfinder.ExtensionPointProperties;
 import ghidra.util.task.TaskMonitor;
 
 @ExtensionPointProperties(priority = 2)
-public final class PyScriptProvider extends PythonScriptProvider {
+public final class PyScriptProvider extends JythonScriptProvider {
 
 	// set via reflection
 	private static Consumer<GhidraScript> scriptRunner = null;
