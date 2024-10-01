@@ -1,4 +1,5 @@
 import contextlib
+import functools
 from pathlib import Path
 from typing import Union, TYPE_CHECKING, Tuple, ContextManager, List, Optional
 
@@ -11,6 +12,41 @@ if TYPE_CHECKING:
     from ghidra.program.flatapi import FlatProgramAPI
     from ghidra.program.model.lang import CompilerSpec, Language, LanguageService
     from ghidra.program.model.listing import Program
+
+
+# stub for documentation and typing
+# this is mostly to hide the function parameter
+def debug_callback(suspend=False, **kwargs):
+    """
+    Decorator for enabling debugging of functions called from a thread started in Java.
+    All parameters are forwarded to `pydevd.settrace`.
+    It is recommended to remove this decorator from a function when it is no longer needed.
+
+    :param suspend: The suspend parameter for `pydevd.settrace` (Defaults to False)
+    :return: The decorated function
+    """
+
+
+# this is the actual implementation
+def _debug_callback(fun=None, *, suspend=False, **pydevd_kwargs):
+    if not fun:
+        return functools.partial(_debug_callback, suspend=suspend, **pydevd_kwargs)
+
+    @functools.wraps(fun)
+    def wrapper(*args, **kwargs):
+        try:
+            import pydevd # type: ignore
+            pydevd_kwargs["suspend"] = suspend
+            pydevd.settrace(**pydevd_kwargs)
+        except ImportError:
+            # ignored, importing always fails if the pydevd debugger isn't attached
+            pass
+        return fun(*args, **kwargs)
+
+    return wrapper
+
+
+debug_callback = _debug_callback
 
 
 def start(verbose=False) -> "PyhidraLauncher":

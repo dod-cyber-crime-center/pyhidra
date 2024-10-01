@@ -1,5 +1,6 @@
 import contextlib
 import ctypes
+import enum
 import logging
 import re
 import sys
@@ -8,6 +9,7 @@ from code import InteractiveConsole
 
 from ghidra.app.plugin.core.interpreter import InterpreterConsole, InterpreterPanelService
 from ghidra.framework import Application
+from ghidra.util.task import CancelledListener
 from java.io import BufferedReader, InputStreamReader, PushbackReader
 from java.lang import ClassLoader, Runnable, String
 from java.util import Collections
@@ -44,11 +46,30 @@ def _set_field(cls, fname, value, obj=None):
     field = cls.getDeclaredField(fname)
     field.setAccessible(True)
     field.set(obj, value)
-    field.setAccessible(False)
 
 
 def _run_script(script):
     PyGhidraScript(script).run()
+
+
+@JImplements(CancelledListener)
+class InterpreterCanceller:
+
+    def __init__(self, thread):
+        self._thread = thread
+
+    @JOverride
+    def cancelled(self):
+        if self._thread is not None and self._thread.is_alive():
+            # raise a KeyboardInterrupt in the interpreter thread
+            exc = ctypes.py_object(KeyboardInterrupt)
+            ctypes.pythonapi.PyThreadState_SetAsyncExc(self._thread.ident, exc)
+
+
+class ConsoleState(enum.Enum):
+    DISPOSING = enum.auto()
+    RUNNING = enum.auto()
+    RESET = enum.auto()
 
 
 class PyConsole(InteractiveConsole):
@@ -56,7 +77,7 @@ class PyConsole(InteractiveConsole):
     Pyhidra Interactive Console
     """
 
-    def __init__(self, py_plugin) -> None:
+    def __init__(self, py_plugin: "PyPhidraPlugin"):
         super().__init__(locals=PyGhidraScript(py_plugin.script))
         appVersion = Application.getApplicationVersion()
         appName = Application.getApplicationReleaseName()
@@ -71,9 +92,12 @@ class PyConsole(InteractiveConsole):
         self._err = console.getErrWriter()
         self._writer = self._out
         self._thread = None
+        self._interact_thread = None
         self._script = self.locals._script
         state = self._script.getState()
-        self._script.set(state, console.getOutWriter())
+        self._script.set(state, self._out)
+        self._canceller = None
+        self._state = ConsoleState.RESET
 
     def raw_input(self, prompt=''):
         self._console.setPrompt(prompt)
@@ -93,11 +117,17 @@ class PyConsole(InteractiveConsole):
         """
         Release the console resources
         """
+        self._state = ConsoleState.DISPOSING
+        self.close()
+        self._interact_thread.join(timeout=10.0)
+        self._interact_thread = None
         self._console.dispose()
 
     def close(self):
+        if self._canceller:
+            self._script.monitor.removeCancelledListener(self._canceller)
+            self._canceller = None
         if self._thread is not None and self._thread.is_alive():
-
             # raise a SystemExit in the interpreter thread once it resumes
             # this will force this thread, and only this thread, to begin
             # cleanup routines, __exit__ functions, finalizers, etc. and exit
@@ -115,7 +145,8 @@ class PyConsole(InteractiveConsole):
             # ditch the locals so the contents may be released
             self.locals = dict()
 
-    def restart(self):
+    def reset(self):
+        self._state = ConsoleState.RESET
         self.close()
 
         # clear any existing output in the window and re-open the console input
@@ -124,10 +155,32 @@ class PyConsole(InteractiveConsole):
         # this resets the locals, and gets a new code compiler
         super().__init__(locals=PyGhidraScript(self._script))
 
-        target = self.interact
-        targs = {"banner": self.banner}
-        self._thread = threading.Thread(target=target, name="Interpreter", kwargs=targs)
-        self._thread.start()
+    def restart(self):
+        self.reset()
+        if not self._interact_thread:
+            target = self.interact
+            targs = {"banner": self.banner}
+            self._interact_thread = threading.Thread(target=target, name="Interpreter", kwargs=targs)
+            self._interact_thread.start()
+    
+    def interact(self, *args, **kwargs):
+        while self._state != ConsoleState.DISPOSING:
+            # We need a nested thread to handle sys.exit as well as a KeyboardInterrupt which
+            # can be injected at anytime. This is the only way to guarentee the interpreter
+            # will never be left in a dead state.
+            self._thread = threading.Thread(target=super().interact, name="Interpreter", args=args, kwargs=kwargs)
+            self._canceller = InterpreterCanceller(self._thread)
+            self._script.monitor.addCancelledListener(self._canceller)
+            self._state = ConsoleState.RUNNING
+            self._thread.start()
+            self._thread.join()
+            self._thread = None
+            self._script.monitor.clearCanceled()
+            if self._state == ConsoleState.RUNNING:
+                # the user used sys.exit and the thread finished
+                # we need to call reset ourselves
+                self.reset()
+        
 
     @contextlib.contextmanager
     def redirect_writer(self):
@@ -150,7 +203,8 @@ class PyConsole(InteractiveConsole):
         self._script.start()
         success = False
         try:
-            with contextlib.redirect_stdout(self._out), contextlib.redirect_stderr(self._err):
+            # NOTE: redirect stdout to self so we can flush after each write
+            with contextlib.redirect_stdout(self), contextlib.redirect_stderr(self._err):
                 yield
                 success = True
         finally:

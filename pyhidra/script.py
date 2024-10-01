@@ -1,3 +1,4 @@
+import functools
 import importlib
 import importlib.util
 import inspect
@@ -10,6 +11,8 @@ from pathlib import Path
 from jpype import JClass, JImplementationFor
 from typing import List
 
+
+from .core import debug_callback
 
 _NO_ATTRIBUTE = object()
 
@@ -105,6 +108,43 @@ class _GhidraScriptLoader(SourceFileLoader):
     def create_module(self, spec: ModuleSpec):
         return _GhidraScriptModule(spec)
 
+    # this will make debugging "just work" if a debugger attaches to the process
+    @debug_callback
+    def exec_module(self, module):
+        return super().exec_module(module)
+
+
+def _build_script_print(stdout):
+    @functools.wraps(print)
+    def wrapper(*objects, sep=' ', end='\n', file=None, flush=False):
+        # ensure we get the same behavior if the file is closed
+        if file is None:
+            file = stdout
+            # since write will be used, it won't flush on a line ending
+            # force it for stdout in a GhidraScript
+            flush = flush or end == '\n'
+        return print(*objects, sep=sep, end=end, file=file, flush=flush)
+    return wrapper
+
+
+def _has_runtime_metadata(script_path: str) -> bool:
+    """
+    Checks if this script has the @runtime PyGhidra metadata
+    """
+    # ScriptInfo doesn't provide a way to obtain all the raw metadata
+    # so we have to get it ourselves
+    in_block_comment = False
+    with open(script_path) as fp:
+        for line in fp:
+            # this doesn't need to be perfect
+            if line.startswith(('"""', "'''")):
+                in_block_comment = not in_block_comment
+            elif line.startswith('#'):
+                if "@runtime PyGhidra" in line:
+                    return True
+            elif not in_block_comment:
+                return False
+
 
 # pylint: disable=missing-function-docstring
 class PyGhidraScript(dict):
@@ -132,6 +172,11 @@ class PyGhidraScript(dict):
 
         # this is injected since Ghidra commit e66e72577ded1aeae53bcc3f361dfce1ecf6e24a
         super().__setitem__("this", self._script)
+
+        # overwrite the builtin print so it will always work
+        # the global redirection of stdout/stderr works on a best-effort basis
+        printer = _build_script_print(self._script.writer)
+        super().__setitem__("print", printer)
 
     def __missing__(self, k):
         attr = getattr(self._script, k, _NO_ATTRIBUTE)
@@ -189,6 +234,15 @@ class PyGhidraScript(dict):
 
         orig_argv = sys.argv
         script_root = str(Path(script_path).parent)
+
+        if not _has_runtime_metadata(script_path):
+            # emit a friendly yet annoying warning about the behavior
+            # change coming in PyGhidra
+            msg = "PyGhidra will not be Ghidra's default Python script runtime.\n" + \
+                  "This script will be executed by Jython without the @runtime metadata.\n" + \
+                  "To suppress this warning, add \"# @runtime PyGhidra\" " + \
+                  "to the start of your script."
+            self._script.printerr(msg)
 
         # honor the python safe_path flag introduced in 3.11
         safe_path = bool(getattr(sys.flags, "safe_path", 0))

@@ -3,13 +3,16 @@ Script to uninstall a Ghidra plugin.
 """
 
 import argparse
-from pathlib import Path
 import logging
+from pathlib import Path
+import warnings
 
 import pyhidra
 
 
 if __name__ == "__main__":
+    warnings.warn('"python -m pyhidra.uninstall_plugins"'
+                  ' has been removed in pyghidra', DeprecationWarning, 2)
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser("Uninstall Ghidra Plugin")
     parser.add_argument(

@@ -10,13 +10,16 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
+from importlib.machinery import ModuleSpec
 from pathlib import Path
 from typing import List, NoReturn, Tuple, Union
 
 import jpype
 from jpype import imports, _jpype
-from importlib.machinery import ModuleSpec
+from packaging.version import Version
+
 
 from . import __version__
 from .javac import java_compile
@@ -49,23 +52,26 @@ def _silence_java_output(stdout=True, stderr=True):
             System.setErr(err)
 
 
+def _get_entry_points(group: str):
+    entry_points = importlib.metadata.entry_points()
+    if hasattr(entry_points, 'select'):
+        return entry_points.select(group=group)
+    return entry_points.get(group, tuple())
+
+
 def _load_entry_points(group: str, *args):
     """
     Loads any entry point callbacks registered by external python packages.
     """
-    entry_points = importlib.metadata.entry_points()
-    if hasattr(entry_points, 'select'):
-        entries = entry_points.select(group=group)
-    else:
-        entries = entry_points.get(group, None)
-        if entries is None:
-            return
+    entries = set()
+    entries.update(_get_entry_points("pyghidra." + group))
+    entries.update(_get_entry_points("pyhidra." + group))
 
     for entry in entries:
         name = entry.name
-        callback = entry.load()
         try:
             # Give launcher to callback so they can edit vmargs, install plugins, etc.
+            callback = entry.load()
             logger.debug(f"Calling {group} entry point: {name}")
             callback(*args)
         except Exception as e:
@@ -89,6 +95,33 @@ class _PyhidraImportLoader:
 
     def exec_module(self, fullname):
         pass
+
+
+@contextlib.contextmanager
+def _plugin_lock():
+    """
+    File lock for processing plugins
+    """
+    from java.io import RandomAccessFile
+    path = Path(tempfile.gettempdir()) / "pyghidra_plugin_lock"
+    try:
+        # Python doesn't have a file lock except for unix systems
+        # so use the one available in Java instead of adding on
+        # a third party library
+        with RandomAccessFile(str(path), "rw") as fp:
+            lock = fp.getChannel().lock()
+            try:
+                yield
+            finally:
+                lock.release()
+    finally:
+        try:
+            path.unlink()
+        except:
+            # if it fails it's ok
+            # another pyghidra process has the lock
+            # it will be removed by said process when done
+            pass
 
 
 class PyhidraLauncher:
@@ -224,89 +257,98 @@ class PyhidraLauncher:
         Checks if the currently installed Ghidra version is supported.
         The launcher will report the problem and terminate if it is not supported.
         """
-        if self.app_info.version < MINIMUM_GHIDRA_VERSION:
+        if Version(self.app_info.version) < Version(MINIMUM_GHIDRA_VERSION):
             msg = f"Ghidra version {self.app_info.version} is not supported" + os.linesep + \
                   f"The minimum required version is {MINIMUM_GHIDRA_VERSION}"
             self._report_fatal_error("Unsupported Version", msg, ValueError(msg))
 
-    def start(self, **jpype_kwargs):
+    def _install_pyhidra_plugin(self, source_path: Path, details: ExtensionDetails):
+        # cross compatibility hacks
+        with tempfile.TemporaryDirectory() as out:
+            outdir = Path(out).resolve()
+            plugindir = outdir / "plugin"
+            shutil.copytree(source_path, outdir, dirs_exist_ok=True)
+            if Version(self.app_info.version) < Version("11.2"):
+                target = plugindir / "PyScriptProviderOld.java"
+                invalid = plugindir / "PyScriptProviderNew.java"
+            else:
+                target = plugindir / "PyScriptProviderNew.java"
+                invalid = plugindir / "PyScriptProviderOld.java"
+            target.rename(target.with_name("PyScriptProvider.java"))
+            invalid.unlink()
+            return self._install_plugin(outdir, details)
+
+    def _setup_java(self, **jpype_kwargs):
         """
-        Starts Jpype connection to Ghidra (if not already started).
+        Run setup entry points, start the JVM and prepare ghidra imports
         """
-        if jpype.isJVMStarted():
-            return
+        # Before starting up, give launcher to installed entry points so they can do their thing.
+        _load_entry_points("setup", self)
 
-        self.check_ghidra_version()
+        # Merge classpath
+        jpype_kwargs['classpath'] = self.class_path + jpype_kwargs.get('classpath', [])
 
-        try:
-            # Before starting up, give launcher to installed entry points so they can do their thing.
-            _load_entry_points("pyhidra.setup", self)
+        # force convert strings (required by pyhidra)
+        jpype_kwargs['convertStrings'] = True
 
-            pyhidra_details = ExtensionDetails(
-                name="pyhidra",
-                description="Native Python Plugin",
-                author="Department of Defense Cyber Crime Center (DC3)",
-                plugin_version=__version__,
-                version=self.app_info.version
-            )
+        # set the JAVA_HOME environment variable to the correct one so jpype uses it
+        os.environ['JAVA_HOME'] = str(self.java_home)
 
-            # Merge classpath
-            jpype_kwargs['classpath'] = self.class_path + jpype_kwargs.get('classpath', [])
+        jpype.startJVM(
+            None, # indicates to use JAVA_HOME as the jvm path
+            *self.vm_args,
+            **jpype_kwargs
+        )
 
-            # force convert strings (required by pyhidra)
-            jpype_kwargs['convertStrings'] = True
+        # Install hook into python importlib
+        sys.meta_path.append(_PyhidraImportLoader())
 
-            # set the JAVA_HOME environment variable to the correct one so jpype uses it
-            os.environ['JAVA_HOME'] = str(self.java_home)
+        imports.registerDomain("ghidra")
 
-            jpype.startJVM(
-                None, # indicates to use JAVA_HOME as the jvm path
-                *self.vm_args,
-                **jpype_kwargs
-            )
+    def _pre_launch_init(self):
+        pyhidra_details = ExtensionDetails(
+            name="pyhidra",
+            description="Native Python Plugin",
+            author="Department of Defense Cyber Crime Center (DC3)",
+            plugin_version=__version__,
+            version=self.app_info.version
+        )
 
-            # Install hook into python importlib
-            sys.meta_path.append(_PyhidraImportLoader())
+        # import and create a temporary GhidraApplicationLayout this can be
+        # used without initializing Ghidra to obtain the correct Extension path
+        from ghidra import GhidraApplicationLayout
+        self._layout = GhidraApplicationLayout()
 
-            imports.registerDomain("ghidra")
+        # uninstall any outdated plugins before initializing Ghidra to ensure they are loaded correctly
+        self._uninstall_old_plugin(pyhidra_details)
 
-            # import and create a temporary GhidraApplicationLayout this can be
-            # used without initializing Ghidra to obtain the correct Extension path
-            from ghidra import GhidraApplicationLayout
-            self._layout = GhidraApplicationLayout()
-
-            # uninstall any outdated plugins before initializing Ghidra to ensure they are loaded correctly
-            self._uninstall_old_plugin(pyhidra_details)
-
-            for _, details in self._plugins:
-                try:
-                    self._uninstall_old_plugin(details)
-                except:
-                    logger.warning("failed to uninstall plugin %s", details.name)
+        for _, details in self._plugins:
+            try:
+                self._uninstall_old_plugin(details)
+            except:
+                logger.warning("failed to uninstall plugin %s", details.name)
 
 
-            from ghidra import GhidraLauncher
+        from ghidra import GhidraLauncher
+        self._layout = GhidraLauncher.initializeGhidraEnvironment()
+
+        # install the Pyhidra plugin.
+        from pyhidra.java import plugin
+        java_root = Path(plugin.__file__).parent.parent
+        needs_reload = self._install_pyhidra_plugin(java_root, pyhidra_details)
+
+        if needs_reload:
+            # "restart" Ghidra
             self._layout = GhidraLauncher.initializeGhidraEnvironment()
+            needs_reload = False
 
-            # install the Pyhidra plugin.
-            from pyhidra.java import plugin
-            needs_reload = self._install_plugin(Path(plugin.__file__).parent, pyhidra_details)
+        from java.lang import System
 
-            if needs_reload:
-                # "restart" Ghidra
-                self._layout = GhidraLauncher.initializeGhidraEnvironment()
-                needs_reload = False
-
-            from java.lang import System
-
-            # manually check the classpath for the pyhidra plugin to
-            # help diagnose confusing errors (GH #31)
-            # this will help in the future too if Extensions are ever moved outside
-            # of the Ghidra user settings directory
-            jar_path = self._get_plugin_jar_path("pyhidra")
-
-        except Exception as e:
-            self._report_fatal_error("An error occured launching Ghidra", str(e), e)
+        # manually check the classpath for the pyhidra plugin to
+        # help diagnose confusing errors (GH #31)
+        # this will help in the future too if Extensions are ever moved outside
+        # of the Ghidra user settings directory
+        jar_path = self._get_plugin_jar_path("pyhidra")
 
         # NOTE: be very careful not to cause an exception here because there will be
         # no indication of a problem in GUI mode unless started with pyhidra -g -v
@@ -334,36 +376,48 @@ class PyhidraLauncher:
                 logger.debug("plugin path: %s\nclasspath: %s", jar_path, '\n'.join(classpath))
                 self._report_fatal_error(title, msg, RuntimeError(msg))
 
+        # import it at the end so interfaces in our java code may be implemented
+        from pyhidra.java.plugin.plugin import PyPhidraPlugin
+        PyPhidraPlugin.register()
+
+        # Add extra class paths
+        # Do this before installing plugins incase dependencies are needed
+        if self.class_files:
+            from java.lang import ClassLoader
+            gcl = ClassLoader.getSystemClassLoader()
+            for path in self.class_files:
+                gcl.addPath(path)
+
+        # Install extra plugins.
+        for source_path, details in self._plugins:
+            try:
+                needs_reload = self._install_plugin(source_path, details) or needs_reload
+            except Exception as e:
+                # we should always warn if a plugin failed to compile
+                logger.warning(e, exc_info=e)
+
+        if needs_reload:
+            # "restart" Ghidra
+            self._layout = GhidraLauncher.initializeGhidraEnvironment()
+
+        # import properties to register the property customizer
+        from . import properties as _
+
+        _load_entry_points("pre_launch")
+
+    def start(self, **jpype_kwargs):
+        """
+        Starts Jpype connection to Ghidra (if not already started).
+        """
+        if jpype.isJVMStarted():
+            return
+
+        self.check_ghidra_version()
+
         try:
-            # import it at the end so interfaces in our java code may be implemented
-            from pyhidra.java.plugin.plugin import PyPhidraPlugin
-            PyPhidraPlugin.register()
-
-            # Add extra class paths
-            # Do this before installing plugins incase dependencies are needed
-            if self.class_files:
-                from java.lang import ClassLoader
-                gcl = ClassLoader.getSystemClassLoader()
-                for path in self.class_files:
-                    gcl.addPath(path)
-
-            # Install extra plugins.
-            for source_path, details in self._plugins:
-                try:
-                    needs_reload = self._install_plugin(source_path, details) or needs_reload
-                except Exception as e:
-                    # we should always warn if a plugin failed to compile
-                    logger.warn(e, exc_info=e)
-
-            if needs_reload:
-                # "restart" Ghidra
-                self._layout = GhidraLauncher.initializeGhidraEnvironment()
-
-            # import properties to register the property customizer
-            from . import properties as _
-
-            _load_entry_points("pyhidra.pre_launch")
-
+            self._setup_java(**jpype_kwargs)
+            with _plugin_lock():
+                self._pre_launch_init()
             self._launch()
         except Exception as e:
             self._report_fatal_error("An error occured launching Ghidra", str(e), e)
@@ -425,7 +479,7 @@ class PyhidraLauncher:
             path.mkdir(parents=True, exist_ok=True)
 
             try:
-                java_compile(root.parent, jar_path)
+                java_compile(root, jar_path)
             except:
                 shutil.rmtree(path, ignore_errors=True)
                 raise
@@ -577,18 +631,53 @@ class GuiPyhidraLauncher(PyhidraLauncher):
 
 
 def _run_mac_app():
-    # this runs the main event loop
+    # this runs the event loop
     # it is required for the GUI to show up
-    objc = ctypes.cdll.LoadLibrary(ctypes.util.find_library("libobjc"))
-    ctypes.cdll.LoadLibrary(ctypes.util.find_library("AppKit")) # required
-    msgSend = objc.objc_msgSend
-    msgSend.restype = ctypes.c_void_p
-    msgSend.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
-    registerName = objc.sel_registerName
-    registerName.restype = ctypes.c_void_p
-    registerName.argtypes = [ctypes.c_char_p]
-    getClass = objc.objc_getClass
-    getClass.restype = ctypes.c_void_p
-    NSApplication = getClass(b"NSApplication")
-    sharedApplication = msgSend(NSApplication, registerName(b"sharedApplication"))
-    msgSend(sharedApplication, registerName(b"run"))
+    from ctypes import c_void_p, c_double, c_uint64, c_int64, c_int32, c_bool, CFUNCTYPE
+
+    CoreFoundation = ctypes.cdll.LoadLibrary(ctypes.util.find_library("CoreFoundation"))
+
+    def get_function(name, restype, *argtypes):
+        res = getattr(CoreFoundation, name)
+        res.argtypes = [arg for arg in argtypes]
+        res.restype = restype
+        return res
+
+    CFRunLoopTimerCallback = CFUNCTYPE(None, c_void_p, c_void_p)
+    kCFRunLoopDefaultMode = c_void_p.in_dll(CoreFoundation, "kCFRunLoopDefaultMode")
+    kCFRunLoopRunFinished = c_int32(1)
+    NULL = c_void_p(0)
+    INF_TIME = c_double(1.0e20)
+    FIRE_ONCE = c_double(0)
+    kCFAllocatorDefault = NULL
+
+    CFRunLoopGetCurrent = get_function("CFRunLoopGetCurrent", c_void_p)
+    CFRelease = get_function("CFRelease", None, c_void_p)
+
+    CFRunLoopTimerCreate = get_function(
+        "CFRunLoopTimerCreate",
+        c_void_p,
+        c_void_p,
+        c_double,
+        c_double,
+        c_uint64,
+        c_int64,
+        CFRunLoopTimerCallback,
+        c_void_p
+    )
+
+    CFRunLoopAddTimer = get_function("CFRunLoopAddTimer", None, c_void_p, c_void_p, c_void_p)
+    CFRunLoopRunInMode = get_function("CFRunLoopRunInMode", c_int32, c_void_p, c_double, c_bool)
+
+    @CFRunLoopTimerCallback
+    def dummy_timer(timer, info):
+        # this doesn't need to do anything
+        # CFRunLoopTimerCreate just needs a valid callback
+        return
+
+    timer = CFRunLoopTimerCreate(kCFAllocatorDefault, INF_TIME, FIRE_ONCE, 0, 0, dummy_timer, NULL)
+    CFRunLoopAddTimer(CFRunLoopGetCurrent(), timer, kCFRunLoopDefaultMode)
+    CFRelease(timer)
+
+    while CFRunLoopRunInMode(kCFRunLoopDefaultMode, INF_TIME, False) != kCFRunLoopRunFinished:
+        pass

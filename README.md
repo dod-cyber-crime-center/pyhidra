@@ -1,10 +1,13 @@
+## NOTICE
+
+Pyhidra has been integrated into Ghidra under the name "PyGhidra". Pyhidra will continue to support up to Ghidra 11.3/12.0 whichever comes first.
+
 # pyhidra
 
 Pyhidra is a Python library that provides direct access to the Ghidra API within a native CPython interpreter using [jpype](https://jpype.readthedocs.io/en/latest). As well, Pyhidra contains some conveniences for setting up analysis on a given sample and running a Ghidra script locally. It also contains a Ghidra plugin to allow the use of CPython from the
 Ghidra user interface.
 
 Pyhidra was initially developed for use with Dragodis and is designed to be installable without requiring Java or Ghidra. Due to this restriction, the Java plugin for Pyhidra is compiled and installed automatically during first use. The Java plugin is managed by Pyhidra and will automatically be rebuilt as necessary.
-
 
 ## Install
 

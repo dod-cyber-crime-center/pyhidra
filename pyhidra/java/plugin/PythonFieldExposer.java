@@ -48,6 +48,8 @@ public interface PythonFieldExposer {
 		return Map.ofEntries(properties);
 	}
 
+	// this annotation is for creating properties to provide access
+	// to the protected GhidraScript fields only within a Python script
 	@Target(ElementType.TYPE)
 	@Retention(RetentionPolicy.RUNTIME)
 	public static @interface ExposedFields {

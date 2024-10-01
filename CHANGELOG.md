@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.3.0] - 2024-10-01
+- Prevent race condition when building plugins.
+- Added support for Ghidra 11.2.
+- Fixed Mac GUI event loop handling.
+- Added support for `pyghidra.setup` and `pyghidra.pre_launch` aliases.
+- Added `debug_callback` decorator to simplify debugging Python functions called from Java.
+- Fixed bug preventing debugging Python scripts from just working.
+- Override the builtin `print` in GhidraScript context so it always works as expected (#41).
+- Python interpreter now automatically resets when `sys.exit` is used.
+- Fixed Python interpreter output flushing and interruption ability.
+
 ## [1.2.0] - 2024-05-31
 - Fixed Python interpreter completion results for members of currentAddress, currentProgram, etc.
 - Fixed handling of complex Python interpreter completions.
@@ -111,7 +122,8 @@
 ## [0.1.0] - 2021-06-14
 - Initial release
 
-[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.2.0...HEAD
+[Unreleased]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.3.0...HEAD
+[1.3.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.2.0...1.3.0
 [1.2.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.1.0...1.2.0
 [1.1.0]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.0.2...1.1.0
 [1.0.2]: https://github.com/dod-cyber-crime-center/pyhidra/compare/1.0.1...1.0.2
