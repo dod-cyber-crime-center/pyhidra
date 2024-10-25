@@ -9,7 +9,7 @@ from collections.abc import ItemsView, KeysView
 from importlib.machinery import ModuleSpec, SourceFileLoader
 from pathlib import Path
 from jpype import JClass, JImplementationFor
-from typing import List
+from typing import Optional, List
 
 
 from .core import debug_callback
@@ -213,7 +213,7 @@ class PyGhidraScript(dict):
         """
         self._script.set(state, monitor, writer)
 
-    def run(self, script_path: str = None, script_args: List[str] = None):
+    def run(self, script_path: Optional[str] = None, script_args: Optional[List[str]] = None):
         """
         Run this GhidraScript
 

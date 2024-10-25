@@ -14,7 +14,7 @@ import tempfile
 import threading
 from importlib.machinery import ModuleSpec
 from pathlib import Path
-from typing import List, NoReturn, Tuple, Union
+from typing import Optional, List, NoReturn, Tuple, Union
 
 import jpype
 from jpype import imports, _jpype
@@ -129,7 +129,7 @@ class PyhidraLauncher:
     Base pyhidra launcher
     """
 
-    def __init__(self, verbose=False, *, install_dir: Path = None):
+    def __init__(self, verbose=False, *, install_dir: Optional[Path] = None):
         """
         Initializes a new `PyhidraLauncher`.
 

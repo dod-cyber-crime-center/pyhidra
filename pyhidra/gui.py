@@ -5,7 +5,7 @@ from pathlib import Path
 import platform
 import sys
 import traceback
-from typing import NoReturn
+from typing import Optional, NoReturn
 import warnings
 
 import pyhidra
@@ -125,7 +125,7 @@ def _gui():
         _gui_default(install_dir)
 
 
-def gui(install_dir: Path = None):
+def gui(install_dir: Optional[Path] = None):
     """
     Starts the Ghidra GUI
 

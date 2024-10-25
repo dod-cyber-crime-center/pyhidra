@@ -3,6 +3,7 @@ import sys
 import sysconfig
 from pathlib import Path
 from pyhidra import DeferredPyhidraLauncher
+from typing import Optional
 
 
 # creating a shortcut with the winapi to have a set app id is trivial right?
@@ -10,7 +11,7 @@ from pyhidra import DeferredPyhidraLauncher
 
 
 
-def create_shortcut(install_dir: Path = None):
+def create_shortcut(install_dir: Optional[Path] = None):
     """Creates a shortcut to Ghidra (with pyhidra) on the desktop."""
 
     link = Path("~/Desktop/Ghidra (pyhidra).lnk").expanduser()
