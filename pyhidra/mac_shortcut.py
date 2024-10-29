@@ -10,6 +10,7 @@ import sys
 from tempfile import TemporaryDirectory
 
 from pyhidra.linux_shortcut import extract_png
+from typing import Optional
 
 
 applications = Path("~/Applications").expanduser()
@@ -93,7 +94,7 @@ class AppBuilder:
         return self._tmpdir.__exit__(*args)
 
 
-def create_shortcut(install_dir: Path = None):
+def create_shortcut(install_dir: Optional[Path] = None):
     """Install a desktop entry on Mac machine."""
     if install_dir is None:
         install_dir = os.environ.get("GHIDRA_INSTALL_DIR")

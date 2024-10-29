@@ -3,6 +3,7 @@ import shlex
 import sys
 import sysconfig
 from pathlib import Path
+from typing import Optional
 
 desktop_entry = """\
 [Desktop Entry]
@@ -35,7 +36,7 @@ def extract_png(install_dir: Path) -> Path:
     return png_path
 
 
-def create_shortcut(install_dir: Path = None):
+def create_shortcut(install_dir: Optional[Path] = None):
     """Install a desktop entry on Linux machine."""
     pyhidra_exec = Path(sysconfig.get_path("scripts")) / "pyhidra"
     if not pyhidra_exec.exists():

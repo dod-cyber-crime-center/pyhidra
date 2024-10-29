@@ -83,7 +83,7 @@ def _get_language(id: str) -> "Language":
     raise ValueError("Invalid Language ID: "+id)
 
 
-def _get_compiler_spec(lang: "Language", id: str = None) -> "CompilerSpec":
+def _get_compiler_spec(lang: "Language", id: Optional[str] = None) -> "CompilerSpec":
     if id is None:
         return lang.getDefaultCompilerSpec()
     from ghidra.program.model.lang import CompilerSpecID, CompilerSpecNotFoundException
@@ -98,11 +98,11 @@ def _get_compiler_spec(lang: "Language", id: str = None) -> "CompilerSpec":
 
 def _setup_project(
         binary_path: Union[str, Path],
-        project_location: Union[str, Path] = None,
-        project_name: str = None,
-        language: str = None,
-        compiler: str = None,
-        loader: Union[str, JClass] = None
+        project_location: Optional[Union[str, Path]] = None,
+        project_name: Optional[str] = None,
+        language: Optional[str] = None,
+        compiler: Optional[str] = None,
+        loader: Optional[Union[str, JClass]] = None
 ) -> Tuple["GhidraProject", "Program"]:
     from ghidra.base.project import GhidraProject
     from java.lang import ClassLoader
@@ -213,12 +213,12 @@ def _analyze_program(flat_api, program):
 @contextlib.contextmanager
 def open_program(
         binary_path: Union[str, Path],
-        project_location: Union[str, Path] = None,
-        project_name: str = None,
+        project_location: Optional[Union[str, Path]] = None,
+        project_name: Optional[str] = None,
         analyze=True,
-        language: str = None,
-        compiler: str = None,
-        loader: Union[str, JClass] = None
+        language: Optional[str] = None,
+        compiler: Optional[str] = None,
+        loader: Optional[Union[str, JClass]] = None
 ) -> ContextManager["FlatProgramAPI"]: # type: ignore
     """
     Opens given binary path in Ghidra and returns FlatProgramAPI object.
@@ -273,16 +273,16 @@ def open_program(
 
 @contextlib.contextmanager
 def _flat_api(
-        binary_path: Union[str, Path] = None,
-        project_location: Union[str, Path] = None,
-        project_name: str = None,
+        binary_path: Optional[Union[str, Path]] = None,
+        project_location: Optional[Union[str, Path]] = None,
+        project_name: Optional[str] = None,
         verbose=False,
         analyze=True,
-        language: str = None,
-        compiler: str = None,
-        loader: Union[str, JClass] = None,
+        language: Optional[str] = None,
+        compiler: Optional[str] = None,
+        loader: Optional[Union[str, JClass]] = None,
         *,
-        install_dir: Path = None
+        install_dir: Optional[Path] = None
 ):
     """
     Runs a given script on a given binary path.
@@ -345,16 +345,16 @@ def _flat_api(
 def run_script(
     binary_path: Optional[Union[str, Path]],
     script_path: Union[str, Path],
-    project_location: Union[str, Path] = None,
-    project_name: str = None,
-    script_args: List[str] = None,
+    project_location: Optional[Union[str, Path]] = None,
+    project_name: Optional[str] = None,
+    script_args: Optional[List[str]] = None,
     verbose=False,
     analyze=True,
-    lang: str = None,
-    compiler: str = None,
-    loader: Union[str, JClass] = None,
+    lang: Optional[str] = None,
+    compiler: Optional[str] = None,
+    loader: Optional[Union[str, JClass]] = None,
     *,
-    install_dir: Path = None
+    install_dir: Optional[Path] = None
 ):
     """
     Runs a given script on a given binary path.
